@@ -389,6 +389,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         }
 
         @objc func printDone(_ op: NSPrintOperation, success: Bool, contextInfo: UnsafeMutableRawPointer?) {
+            // macOS kann diesen Rückruf auf einem Hintergrund-Thread liefern →
+            // Fenster schließen, Teilen-Menü & Hinweise nur auf dem Haupt-Thread (sonst Absturz)
+            DispatchQueue.main.async { [self] in completePrint(success: success) }
+        }
+
+        func completePrint(success: Bool) {
             if success, !embed.isEmpty, let doc = PDFDocument(url: target) {
                 var attrs = doc.documentAttributes ?? [:]
                 attrs[PDFDocumentAttribute.titleAttribute] = target.deletingPathExtension().lastPathComponent
@@ -401,8 +407,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         }
 
         func finish(_ success: Bool) {
+            guard Thread.isMainThread else {
+                DispatchQueue.main.async { [self] in finish(success) }
+                return
+            }
             web?.navigationDelegate = nil
-            win?.close()
+            win?.orderOut(nil)
+            win?.contentView = nil
+            web = nil
             owner?.pdfJobFinished(self, success: success)
         }
     }

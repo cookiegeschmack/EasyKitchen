@@ -7,6 +7,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.1.1',
+    date: '2026-11-15',
+    title: 'Fehlerbehebung',
+    items: [
+      '🛠 Behoben: EasyKitchen hat sich nach dem Erstellen oder Teilen einer PDF von selbst geschlossen.'
+    ]
+  },
+  {
     version: '1.1.0',
     date: '2026-11-15',
     title: 'Teilen, PDF-Export & Rezept-Import',
