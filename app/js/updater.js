@@ -8,7 +8,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 (function (ns) {
   'use strict';
 
-  const APP_FALLBACK_VERSION = '1.3.1';
+  const APP_FALLBACK_VERSION = '1.3.2';
   const REPO = 'cookiegeschmack/EasyKitchen';
   const RELEASE_PAGE = `https://github.com/${REPO}/releases/latest`;
   const SKIPPED_VER_KEY = 'easykitchen_skipped_update_version';

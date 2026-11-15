@@ -12,7 +12,8 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 👉 **[EasyKitchen.dmg herunterladen (Latest Release)](https://github.com/cookiegeschmack/EasyKitchen/releases/latest/download/EasyKitchen.dmg)**
 
 1. `EasyKitchen.dmg` öffnen und **EasyKitchen** in **Programme** ziehen.
-2. Fertig – die App ist ad-hoc signiert und startet sofort.
+2. Erster Start: Die App ist ad-hoc signiert (ohne Apple-Entwicklerzertifikat). macOS 15+: einmal öffnen, dann *Systemeinstellungen → Datenschutz & Sicherheit → „Dennoch öffnen“*. macOS 11–14: Rechtsklick → „Öffnen“. Die DMG enthält dazu die Datei „Erster Start – bitte lesen.txt“.
+   Voraussetzung: Mac mit Apple-Chip (M1/M2/M3/M4 …) und macOS 11 Big Sur oder neuer.
 3. **1-Klick-Update**: Erscheint ein neues Release, zeigt EasyKitchen oben **„Update vX.Y.Z“** an. Ein Klick lädt die neue Version, ersetzt die App und startet neu. Deine Rezepte bleiben erhalten.
 
 *Alternativ:* `Start-Mac.command` doppelklicken (baut und startet die App aus dem Quellcode).

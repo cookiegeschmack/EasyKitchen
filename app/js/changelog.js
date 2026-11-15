@@ -7,6 +7,15 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.3.2',
+    date: '2026-11-15',
+    title: 'Läuft jetzt auf mehr Macs',
+    items: [
+      '🍏 EasyKitchen läuft jetzt auf allen Macs mit Apple-Chip (M1, M2, M3, M4 …) ab macOS 11 Big Sur – bisher war versehentlich die neueste macOS-Version nötig.',
+      '🛠 Darstellung und Bild-Export funktionieren jetzt auch unter älteren macOS-Versionen.'
+    ]
+  },
+  {
     version: '1.3.1',
     date: '2026-11-15',
     title: 'Neues Logo',
