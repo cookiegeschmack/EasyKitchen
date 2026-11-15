@@ -6,7 +6,8 @@ window.EasyKitchen = window.EasyKitchen || {};
   const D = ns.Data, UI = ns.UI, U = ns.Updater;
   const $ = UI.$, esc = UI.esc;
 
-  const view = { tab: 'all', query: '', time: 0, effort: 0, cost: 0, sort: 'match' };
+  const view = { fav: false, query: '', time: 0, effort: 0, cost: 0, sort: 'match' };
+  const SORT_LABELS = { match: 'Passend zur Suche', time: 'Gesamtzeit', name: 'Name (A–Z)', new: 'Neueste zuerst', fav: 'Favoriten zuerst' };
   let visibleIds = [];
 
   // =========================================================================
@@ -17,7 +18,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const terms = D.parseTerms(view.query);
     let list = D.getRecipes().map(r => ({ r, m: D.matchRecipe(r, terms) }));
 
-    if (view.tab === 'watch') list = list.filter(x => x.r.watch);
+    if (view.fav) list = list.filter(x => x.r.watch);
     if (terms.length) list = list.filter(x => x.m.matchedTerms.length > 0);
     if (view.time) list = list.filter(x => x.r.time > 0 && x.r.time <= view.time);
     if (view.effort) list = list.filter(x => x.r.effort === view.effort);
@@ -28,7 +29,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       match: (a, b) => (b.m.score - a.m.score) || (terms.length ? (a.r.time - b.r.time) : (b.r.updatedAt - a.r.updatedAt)),
       time: (a, b) => (a.r.time - b.r.time) || byName(a, b),
       name: byName,
-      new: (a, b) => b.r.createdAt - a.r.createdAt
+      new: (a, b) => b.r.createdAt - a.r.createdAt,
+      fav: (a, b) => (Number(b.r.watch) - Number(a.r.watch)) || (b.m.score - a.m.score) || byName(a, b)
     };
     list.sort(sorters[view.sort] || sorters.match);
     return { list, terms };
@@ -73,7 +75,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         <div class="card-img">
           ${img}
           <button type="button" class="watch-btn ${r.watch ? 'on' : ''}" data-watch="${esc(r.id)}"
-                  title="${r.watch ? 'Von der Watchlist entfernen' : 'Auf die Watchlist'}" aria-label="Watchlist umschalten">${r.watch ? '★' : '☆'}</button>
+                  title="${r.watch ? 'Favorit entfernen' : 'Als Favorit markieren'}" aria-label="Favorit umschalten">${r.watch ? '★' : '☆'}</button>
         </div>
         <div class="card-body">
           <h3 class="card-title">${esc(r.title)}</h3>
@@ -85,23 +87,24 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function renderList() {
     const all = D.getRecipes();
-    $('count-all').textContent = all.length;
-    $('count-watch').textContent = all.filter(r => r.watch).length;
+    $('count-fav').textContent = all.filter(r => r.watch).length;
+    renderDaily();
 
     const { list, terms } = filteredRecipes();
     const grid = $('recipe-grid');
     const empty = $('empty-state');
-    const filtersActive = !!(view.time || view.effort || view.cost);
+    const filtersActive = !!(view.time || view.effort || view.cost || view.fav);
     $('reset-filters').hidden = !filtersActive && !view.query;
 
     grid.innerHTML = list.map(x => cardHTML(x.r, x.m, terms)).join('');
     visibleIds = list.map(x => x.r.id);
     const exp = $('export-list-btn');
     exp.hidden = !list.length;
-    exp.textContent = list.length === 1 ? 'Angezeigtes Rezept teilen / als PDF' : `Alle ${list.length} angezeigten teilen / als PDF`;
+    $('export-list-label').textContent = list.length === 1 ? 'Teilen / PDF' : `${list.length} teilen / PDF`;
+    exp.title = list.length === 1 ? 'Angezeigtes Rezept teilen oder als PDF speichern' : `Alle ${list.length} angezeigten Rezepte teilen oder als PDF speichern`;
 
     // Ergebnis-Info
-    const base = view.tab === 'watch' ? 'auf deiner Watchlist' : 'in deinen Rezepten';
+    const base = view.fav ? 'unter deinen Favoriten' : 'in deinen Rezepten';
     let info = '';
     if (terms.length) info = `${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} mit „${terms.join('“, „')}“ ${base}`;
     else if (filtersActive) info = `${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} ${base}`;
@@ -116,11 +119,12 @@ window.EasyKitchen = window.EasyKitchen || {};
         <h2>Noch keine Rezepte</h2>
         <p>Leg dein erstes Rezept an – mit Zutaten, Zubereitung und optional einem Foto.</p>
         <button type="button" class="btn btn-primary" data-act="new">＋ Erstes Rezept anlegen</button>`;
-    } else if (view.tab === 'watch' && !all.some(r => r.watch) && !terms.length && !filtersActive) {
+    } else if (view.fav && !all.some(r => r.watch)) {
       empty.innerHTML = `
         <div class="empty-icon">☆</div>
-        <h2>Deine Watchlist ist leer</h2>
-        <p>Markiere Rezepte mit dem Stern, die du bald kochen möchtest.</p>`;
+        <h2>Noch keine Favoriten</h2>
+        <p>Markiere deine Lieblingsrezepte mit dem Stern – dann findest du sie hier.</p>
+        <button type="button" class="btn btn-secondary" data-act="reset">Alle Rezepte zeigen</button>`;
     } else {
       empty.innerHTML = `
         <div class="empty-icon">🔍</div>
@@ -131,13 +135,21 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   function resetFilters() {
-    view.query = ''; view.time = 0; view.effort = 0; view.cost = 0;
+    view.query = ''; view.time = 0; view.effort = 0; view.cost = 0; view.fav = false;
+    $('fav-filter').classList.remove('active');
+    $('fav-filter').setAttribute('aria-pressed', 'false');
     $('search-input').value = '';
     $('search-clear').hidden = true;
     document.querySelectorAll('.chips').forEach(group => {
       group.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.value === '0'));
     });
     renderList();
+  }
+
+  /** Zeiten-Tabelle: Vorbereitung | Zubereitung | Gesamt */
+  function timeTableHTML(r) {
+    const cell = (label, v) => `<div><span>${label}</span><strong>${v ? esc(UI.fmtTime(v)) : '–'}</strong></div>`;
+    return `<div class="time-table">${cell('Vorbereitung', r.prepTime)}${cell('Zubereitung', r.cookTime)}${cell('Gesamtzeit', r.time)}</div>`;
   }
 
   // =========================================================================
@@ -161,8 +173,10 @@ window.EasyKitchen = window.EasyKitchen || {};
         <button type="button" class="icon-btn" data-close="detail-modal" aria-label="Schließen">✕</button>
       </div>
       <div class="modal-body">
+        ${timeTableHTML(r)}
         <div class="card-meta detail-meta">
-          ${metaChips(r)}
+          <span class="meta">${esc(D.EFFORT[r.effort])}</span>
+          <span class="meta">${'€'.repeat(r.cost)}<span class="meta-dim">${'€'.repeat(3 - r.cost)}</span></span>
           <span class="meta">${r.servings} ${r.servings === 1 ? 'Portion' : 'Portionen'}</span>
         </div>
         <div class="detail-cols">
@@ -183,12 +197,16 @@ window.EasyKitchen = window.EasyKitchen || {};
               : '<p class="muted">Keine Zubereitung hinterlegt.</p>'}
           </section>
         </div>
+        <section class="nutri-section">
+          <h3>Nährwerte <span class="muted">· Richtwerte pro Portion</span></h3>
+          ${ns.Nutrition.renderBars(r)}
+        </section>
       </div>
       <div class="modal-foot spread">
         <button type="button" class="btn btn-danger-ghost" data-act="delete">Löschen</button>
         <div class="btn-row">
           <button type="button" class="btn btn-secondary" data-act="share">⇪ Teilen</button>
-          <button type="button" class="btn btn-secondary" data-act="watch">${r.watch ? '★ Auf der Watchlist' : '☆ Zur Watchlist'}</button>
+          <button type="button" class="btn btn-secondary ${r.watch ? 'is-fav' : ''}" data-act="watch">${r.watch ? '★ Favorit' : '☆ Als Favorit'}</button>
           <button type="button" class="btn btn-primary" data-act="edit">Bearbeiten</button>
         </div>
       </div>`;
@@ -311,10 +329,29 @@ window.EasyKitchen = window.EasyKitchen || {};
     }
   }
 
-  function setTime(v) {
-    v = Math.max(0, Math.min(1440, Math.round(Number(v) || 0)));
-    $('ed-time').value = v;
-    $('ed-time-range').value = Math.min(180, v);
+  function setTimes(prep, cook) {
+    const clamp = v => Math.max(0, Math.min(1440, Math.round(Number(v) || 0)));
+    $('ed-prep').value = clamp(prep);
+    $('ed-prep-range').value = Math.min(120, clamp(prep));
+    $('ed-cook').value = clamp(cook);
+    $('ed-cook-range').value = Math.min(180, clamp(cook));
+    updateTotal();
+  }
+
+  function updateTotal() {
+    const t = (Number($('ed-prep').value) || 0) + (Number($('ed-cook').value) || 0);
+    $('ed-total').textContent = t ? UI.fmtTime(t) : '–';
+  }
+
+  let nutriTimer = null;
+  function updateEditorNutrition() {
+    clearTimeout(nutriTimer);
+    nutriTimer = setTimeout(() => {
+      $('ed-nutrition').innerHTML = ns.Nutrition.renderBars({
+        ingredients: readIngredients(),
+        servings: Number($('ed-servings').value) || 1
+      });
+    }, 120);
   }
 
   /**
@@ -333,14 +370,16 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('ed-title').classList.remove('invalid');
     $('ed-steps').value = r ? r.steps : '';
     $('ed-servings').value = r ? r.servings : 2;
-    $('ed-watch').checked = r ? !!r.watch : view.tab === 'watch';
+    $('ed-watch').checked = r ? !!r.watch : view.fav;
     $('ing-error').hidden = true;
-    setTime(r ? r.time : 30);
+    if (r) setTimes(r.prepTime != null ? r.prepTime : 0, r.cookTime != null ? r.cookTime : r.time);
+    else setTimes(0, 30);
     setSegment('effort', r ? r.effort : 1);
     setSegment('cost', r ? r.cost : 1);
     setPhoto(r ? (r.image || '') : '');
     $('ing-list').innerHTML = '';
     (r && r.ingredients.length ? r.ingredients : [null]).forEach(i => addIngredientRow(i));
+    updateEditorNutrition();
     UI.closeModal('detail-modal');
     UI.openModal('editor-modal');
     $('ed-title').focus();
@@ -366,7 +405,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       id: editor.id || undefined,
       title,
       image: editor.image,
-      time: Number($('ed-time').value) || 0,
+      prepTime: Number($('ed-prep').value) || 0,
+      cookTime: Number($('ed-cook').value) || 0,
       effort: editor.effort,
       cost: editor.cost,
       servings: Number($('ed-servings').value) || 1,
@@ -409,16 +449,162 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   // =========================================================================
+  // Rezept(e) des Tages – Diashow über der Liste (unabhängig von Suche & Filtern)
+  // =========================================================================
+
+  const DAILY_MS = 10000;
+  const daily = { key: '', picks: [], index: 0, elapsed: 0, hover: false, timer: null };
+
+  // Fortschritt per Timer (nicht per CSS-Animation): pausiert bei Maus darüber,
+  // offenem Dialog oder verstecktem Fenster und läuft danach weiter.
+  function startDailyTimer() {
+    clearInterval(daily.timer);
+    daily.elapsed = 0;
+    if (daily.picks.length < 2) return;
+    let last = performance.now();
+    daily.timer = setInterval(() => {
+      const now = performance.now();
+      const delta = Math.min(now - last, 500);   // nach Pausen/Schlaf nicht springen
+      last = now;
+      if (daily.hover || document.hidden || UI.topModal()) return;
+      daily.elapsed += delta;
+      const bar = $('daily-bar');
+      if (bar) bar.style.width = Math.min(100, daily.elapsed / DAILY_MS * 100) + '%';
+      if (daily.elapsed >= DAILY_MS) nextDaily(1);
+    }, 100);
+  }
+
+  /** Anzahl Tagesrezepte nach Gesamtzahl: unter 30 → 1, ab 30 → 2, ab 40 → 3. */
+  function dailySlots(n) {
+    if (!n) return 0;
+    if (n >= 40) return 3;
+    if (n >= 30) return 2;
+    return 1;
+  }
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+
+  // Deterministischer Zufall pro Tag: gleiche Auswahl den ganzen Tag, morgen eine neue
+  function dayHash(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+
+  function pickDaily(all) {
+    const slots = dailySlots(all.length);
+    const day = todayKey();
+    const order = list => list.slice().sort((a, b) => dayHash(day + a.id) - dayHash(day + b.id));
+    // Favoriten zuerst; reichen sie nicht, wird mit weiteren Rezepten aufgefüllt
+    const favs = order(all.filter(r => r.watch));
+    const rest = order(all.filter(r => !r.watch));
+    return favs.concat(rest).slice(0, slots);
+  }
+
+  function renderDaily() {
+    const box = $('daily');
+    const picks = pickDaily(D.getRecipes());
+    const key = todayKey() + '|' + picks.map(r => r.id + ':' + r.updatedAt + ':' + r.watch).join(',');
+    if (!picks.length) { box.hidden = true; daily.key = ''; clearInterval(daily.timer); return; }
+    if (key === daily.key) return;               // unverändert → Diashow nicht neu starten
+    const keepId = daily.picks[daily.index] && daily.picks[daily.index].id;
+    daily.key = key;
+    daily.picks = picks;
+    const keep = picks.findIndex(r => r.id === keepId);
+    daily.index = keep >= 0 ? keep : 0;
+    box.hidden = false;
+    box.classList.toggle('single', picks.length === 1);
+    showDailySlide();
+  }
+
+  function showDailySlide() {
+    const box = $('daily');
+    const r = daily.picks[daily.index];
+    if (!r) return;
+    const multi = daily.picks.length > 1;
+    const title = multi ? `${daily.picks.length} Rezepte des Tages` : 'Rezept des Tages';
+    const thumb = r.image
+      ? `<img src="${r.image}" alt="">`
+      : `<span class="daily-initial">${esc(r.title.charAt(0).toUpperCase())}</span>`;
+    box.innerHTML = `
+      <div class="daily-head">
+        <span class="daily-title">✨ ${title}</span>
+        ${multi ? `<span class="daily-dots">${daily.picks.map((_, i) => `<button type="button" class="daily-dot ${i === daily.index ? 'on' : ''}" data-daily-go="${i}" aria-label="Rezept ${i + 1}"></button>`).join('')}</span>` : ''}
+        ${multi ? '<button type="button" class="daily-skip" data-daily-next title="Nächstes Rezept">Nächstes ›</button>' : ''}
+      </div>
+      <button type="button" class="daily-slide" data-daily-open="${esc(r.id)}">
+        <span class="daily-thumb">${thumb}</span>
+        <span class="daily-text">
+          <strong class="daily-name">${esc(r.title)}</strong>
+          <span class="daily-meta">⏱ ${esc(UI.fmtTime(r.time))} · ${esc(D.EFFORT[r.effort])}${r.watch ? ' · ★ Favorit' : ''}</span>
+        </span>
+        <span class="daily-open">Ansehen ›</span>
+      </button>
+      ${multi ? '<div class="daily-progress"><div class="daily-bar" id="daily-bar"></div></div>' : ''}`;
+    startDailyTimer();
+  }
+
+  function nextDaily(step) {
+    if (daily.picks.length < 2) return;
+    if (daily.key && !daily.key.startsWith(todayKey() + '|')) { daily.key = ''; renderDaily(); return; } // neuer Tag
+    daily.index = (daily.index + step + daily.picks.length) % daily.picks.length;
+    showDailySlide();
+  }
+
+  function wireDaily() {
+    $('daily').addEventListener('mouseenter', () => { daily.hover = true; });
+    $('daily').addEventListener('mouseleave', () => { daily.hover = false; });
+    $('daily').addEventListener('click', e => {
+      if (e.target.closest('[data-daily-next]')) { nextDaily(1); return; }
+      const go = e.target.closest('[data-daily-go]');
+      if (go) { daily.index = Number(go.dataset.dailyGo); showDailySlide(); return; }
+      const open = e.target.closest('[data-daily-open]');
+      if (open) openDetail(open.dataset.dailyOpen);
+    });
+  }
+
+  // =========================================================================
   // Verdrahtung
   // =========================================================================
 
   function wire() {
-    // Tabs
-    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
-      view.tab = t.dataset.view;
-      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+    // Favoriten-Filter
+    $('fav-filter').addEventListener('click', () => {
+      view.fav = !view.fav;
+      $('fav-filter').classList.toggle('active', view.fav);
+      $('fav-filter').setAttribute('aria-pressed', String(view.fav));
       renderList();
-    }));
+    });
+
+    // Version oben → Update-Prüfung
+    $('topbar-version').addEventListener('click', () => U.check({ manual: true }));
+
+    // Sortieren (Icon-Menü)
+    const sortBtn = $('sort-btn'), sortMenu = $('sort-menu');
+    const setSortMenu = open => { sortMenu.hidden = !open; sortBtn.setAttribute('aria-expanded', String(open)); };
+    const syncSort = () => {
+      sortMenu.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.sort === view.sort)));
+      sortBtn.title = `Sortieren: ${SORT_LABELS[view.sort]}`;
+      $('sort-dot').hidden = view.sort === 'match';
+    };
+    sortBtn.addEventListener('click', e => { e.stopPropagation(); setSortMenu(sortMenu.hidden); });
+    sortMenu.addEventListener('click', e => {
+      const b = e.target.closest('[data-sort]');
+      if (!b) return;
+      view.sort = b.dataset.sort;
+      syncSort();
+      setSortMenu(false);
+      renderList();
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.sort-wrap')) setSortMenu(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sortMenu.hidden) { setSortMenu(false); e.stopPropagation(); } }, true);
+    syncSort();
+
+    // Rezepte des Tages
+    wireDaily();
 
     // Suche
     const search = $('search-input');
@@ -435,7 +621,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     });
 
     // Filter-Chips
-    document.querySelectorAll('.chips').forEach(group => {
+    document.querySelectorAll('.chips[data-filter]').forEach(group => {
       group.addEventListener('click', e => {
         const chip = e.target.closest('.chip');
         if (!chip) return;
@@ -444,7 +630,6 @@ window.EasyKitchen = window.EasyKitchen || {};
         renderList();
       });
     });
-    $('sort-select').addEventListener('change', e => { view.sort = e.target.value; renderList(); });
     $('reset-filters').addEventListener('click', resetFilters);
 
     // Karten
@@ -453,7 +638,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (w) {
         e.stopPropagation();
         const on = D.toggleWatch(w.dataset.watch);
-        UI.toast(on ? 'Zur Watchlist hinzugefügt ★' : 'Von der Watchlist entfernt');
+        UI.toast(on ? 'Als Favorit markiert ★' : 'Favorit entfernt');
         renderList();
         return;
       }
@@ -479,7 +664,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       else if (act === 'share') ns.Share.openShareModal([detailId]);
       else if (act === 'watch') {
         const on = D.toggleWatch(detailId);
-        UI.toast(on ? 'Zur Watchlist hinzugefügt ★' : 'Von der Watchlist entfernt');
+        UI.toast(on ? 'Als Favorit markiert ★' : 'Favorit entfernt');
         renderList();
         openDetail(detailId);
       } else if (act === 'delete') {
@@ -503,10 +688,17 @@ window.EasyKitchen = window.EasyKitchen || {};
     // Editor
     $('editor-form').addEventListener('submit', saveEditor);
     $('add-ing-btn').addEventListener('click', () => addIngredientRow(null, true));
-    $('ed-time-range').addEventListener('input', e => { $('ed-time').value = e.target.value; });
-    $('ed-time').addEventListener('input', e => {
-      $('ed-time-range').value = Math.min(180, Number(e.target.value) || 0);
+    [['ed-prep', 120], ['ed-cook', 180]].forEach(([id, max]) => {
+      $(id + '-range').addEventListener('input', e => { $(id).value = e.target.value; updateTotal(); });
+      $(id).addEventListener('input', e => {
+        $(id + '-range').value = Math.min(max, Number(e.target.value) || 0);
+        updateTotal();
+      });
     });
+    // Nährwerte live neu berechnen, sobald sich Zutaten oder Portionen ändern
+    ['input', 'change', 'click'].forEach(ev => $('ing-list').addEventListener(ev, updateEditorNutrition));
+    $('ed-servings').addEventListener('input', updateEditorNutrition);
+    $('add-ing-btn').addEventListener('click', updateEditorNutrition);
     document.querySelectorAll('.segmented').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (b) setSegment(seg.dataset.seg, Number(b.dataset.value));
@@ -514,6 +706,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     document.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
       const inp = $('ed-servings');
       inp.value = Math.max(1, Math.min(50, (Number(inp.value) || 1) + Number(b.dataset.serv)));
+      updateEditorNutrition();
     }));
 
     // Foto

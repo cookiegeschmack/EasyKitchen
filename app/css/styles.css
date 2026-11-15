@@ -353,6 +353,118 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
 .stack { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .stack .btn { justify-content: flex-start; white-space: normal; text-align: left; }
 
+/* ---------- Version oben ---------- */
+.brand { flex-wrap: wrap; row-gap: 6px; }
+.version-chip-top {
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
+  font-size: 12px; font-weight: 650; padding: 2px 9px; border-radius: 20px; margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.version-chip-top:hover { color: var(--text); border-color: var(--text-3); }
+.version-chip-top.outdated { color: var(--text-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+.brand .update-pill { padding: 3px 11px; font-size: 12.5px; }
+
+/* ---------- Favoriten-Filter ---------- */
+.chip-fav.active { background: var(--star); border-color: var(--star); color: #3a2600; }
+.chip-count {
+  display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 9px;
+  background: var(--surface-2); color: var(--text-2); font-size: 11.5px; text-align: center;
+}
+.chip-fav.active .chip-count { background: rgba(255, 255, 255, .45); color: #3a2600; }
+.btn.is-fav { color: var(--star); border-color: color-mix(in srgb, var(--star) 50%, var(--border)); }
+
+/* ---------- Ergebnisleiste: Teilen & Sortieren ---------- */
+.result-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; gap: 6px; }
+.btn-sm svg { flex-shrink: 0; }
+.sort-wrap { position: relative; }
+.sort-btn { border: 1px solid var(--border); background: var(--surface); position: relative; }
+.sort-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.sort-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.sort-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 260px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg);
+  padding: 6px; display: flex; flex-direction: column;
+}
+.sort-menu-title { font-size: 11.5px; font-weight: 650; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; padding: 6px 10px 4px; }
+.sort-menu button {
+  border: 0; background: none; text-align: left; padding: 8px 10px 8px 30px; border-radius: 8px; font-size: 14px; position: relative;
+}
+.sort-menu button:hover { background: var(--surface-2); }
+.sort-menu button[aria-checked="true"] { font-weight: 650; color: var(--accent-text); }
+.sort-menu button[aria-checked="true"]::before { content: "✓"; position: absolute; left: 11px; }
+
+/* ---------- Rezept(e) des Tages ---------- */
+.daily {
+  position: relative; overflow: hidden; margin: 6px 0 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: linear-gradient(120deg, var(--accent-soft), var(--surface) 70%);
+  border-radius: var(--radius); padding: 12px 16px 16px;
+}
+.daily.single { padding-bottom: 12px; }
+.daily-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.daily-title { font-size: 12px; font-weight: 700; color: var(--accent-text); text-transform: uppercase; letter-spacing: .05em; }
+.daily-dots { display: flex; gap: 5px; }
+.daily-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; border: 0; background: var(--border); }
+.daily-dot.on { background: var(--accent); }
+.daily-skip {
+  margin-left: auto; border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  font-size: 12.5px; font-weight: 600; padding: 3px 11px; border-radius: 14px;
+}
+.daily-skip:hover { color: var(--text); border-color: var(--text-3); }
+.daily-slide {
+  width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+  border: 0; background: none; padding: 0; animation: dailyIn .45s ease;
+}
+@keyframes dailyIn { from { transform: translateX(12px); } to { transform: none; } }
+.daily-thumb {
+  width: 54px; height: 54px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; background: var(--surface-2);
+}
+.daily-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.daily-initial { font-size: 24px; font-weight: 700; color: var(--accent-text); }
+.daily-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.daily-name { font-size: 19px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.daily-meta { font-size: 13px; color: var(--text-2); }
+.daily-open { font-size: 13px; font-weight: 650; color: var(--accent-text); flex-shrink: 0; }
+.daily-slide:hover .daily-name { color: var(--accent-text); }
+.daily-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.daily-bar { height: 100%; width: 0; background: var(--accent); transition: width .1s linear; }
+
+/* ---------- Zeiten ---------- */
+.field-row.two { grid-template-columns: 1fr 1fr; }
+.time-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px 18px; align-items: end; }
+.time-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.time-cell label, .time-total-label { font-size: 12.5px; color: var(--text-2); }
+.time-total { align-items: center; padding: 6px 14px; border-radius: var(--radius-sm); background: var(--surface-2); min-width: 110px; }
+.time-total strong { font-size: 15px; }
+.time-table {
+  display: grid; grid-template-columns: repeat(3, 1fr); margin: 2px 0 14px;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.time-table > div { display: flex; flex-direction: column; align-items: center; padding: 9px 6px; gap: 1px; }
+.time-table > div + div { border-left: 1px solid var(--border); }
+.time-table span { font-size: 12.5px; color: var(--text-2); }
+.time-table strong { font-size: 15px; font-weight: 650; }
+
+/* ---------- Nährwerte ---------- */
+.nutri-section { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.nutri-section h3 { font-size: 15px; margin-bottom: 12px; }
+.nutri-section h3 .muted { font-weight: 400; font-size: 13px; }
+.nutri-bars { display: flex; flex-direction: column; gap: 9px; }
+.nutri-row { display: grid; grid-template-columns: 112px 1fr 76px 44px; align-items: center; gap: 10px; font-size: 13.5px; }
+.nutri-label { color: var(--text-2); }
+.nutri-track { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.nutri-fill { height: 100%; border-radius: 5px; transition: width .35s ease; }
+.n-kcal { background: var(--accent); }
+.n-protein { background: #4f8fd6; }
+.n-carbs { background: #e2a93e; }
+.n-fat { background: #5aa86c; }
+.nutri-value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.nutri-pct { text-align: right; color: var(--text-3); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.nutri-note { margin: 10px 0 0; font-size: 12px; color: var(--text-3); line-height: 1.45; }
+.nutri-empty { font-size: 13px; }
+
 /* ---------- Import ---------- */
 .import-drop {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -441,12 +553,14 @@ body.drop-target::after {
 /* ---------- Kleine Fenster ---------- */
 @media (max-width: 860px) {
   .topbar { flex-wrap: wrap; gap: 10px 14px; padding: 10px 16px; }
-  .tabs { order: 3; width: 100%; }
+  .daily-name { font-size: 16px; }
+  .daily-open { display: none; }
   #import-recipe-btn { padding: 8px 10px; }
-  .tab { flex: 1; }
   .container { padding: 20px 16px 32px; }
-  .filter-sort { margin-left: 0; }
-  .field-row.three { grid-template-columns: 1fr; }
+  .field-row.three, .field-row.two { grid-template-columns: 1fr; }
+  .time-grid { grid-template-columns: 1fr; }
+  .time-total { flex-direction: row; justify-content: space-between; }
+  .nutri-row { grid-template-columns: 92px 1fr 64px 38px; gap: 6px; font-size: 12.5px; }
   .detail-cols { grid-template-columns: 1fr; }
   .modal { padding: 10px; }
 }

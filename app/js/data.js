@@ -18,16 +18,16 @@ window.EasyKitchen = window.EasyKitchen || {};
     { id: 'stk',    label: 'Stück',          max: 20,   step: 1 },
     { id: 'el',     label: 'EL',             max: 10,   step: 0.5 },
     { id: 'tl',     label: 'TL',             max: 10,   step: 0.5 },
-    { id: 'prise',  label: 'Prise',          max: 5,    step: 1 },
+    { id: 'prise',  label: 'Prise', plural: 'Prisen',          max: 5,    step: 1 },
     { id: 'bund',   label: 'Bund',           max: 5,    step: 0.5 },
-    { id: 'dose',   label: 'Dose',           max: 5,    step: 1 },
-    { id: 'pck',    label: 'Packung',        max: 5,    step: 0.5 },
-    { id: 'zehe',   label: 'Zehe',           max: 10,   step: 1 },
-    { id: 'tasse',  label: 'Tasse',          max: 5,    step: 0.25 },
+    { id: 'dose',   label: 'Dose', plural: 'Dosen',           max: 5,    step: 1 },
+    { id: 'pck',    label: 'Packung', plural: 'Packungen',        max: 5,    step: 0.5 },
+    { id: 'zehe',   label: 'Zehe', plural: 'Zehen',           max: 10,   step: 1 },
+    { id: 'tasse',  label: 'Tasse', plural: 'Tassen',          max: 5,    step: 0.25 },
     { id: 'becher', label: 'Becher',         max: 5,    step: 0.5 },
-    { id: 'glas',   label: 'Glas',           max: 5,    step: 0.5 },
-    { id: 'scheibe',label: 'Scheibe',        max: 10,   step: 1 },
-    { id: 'zweig',  label: 'Zweig',          max: 10,   step: 1 },
+    { id: 'glas',   label: 'Glas', plural: 'Gläser',           max: 5,    step: 0.5 },
+    { id: 'scheibe',label: 'Scheibe', plural: 'Scheiben',        max: 10,   step: 1 },
+    { id: 'zweig',  label: 'Zweig', plural: 'Zweige',          max: 10,   step: 1 },
     { id: 'handvoll', label: 'Handvoll',     max: 5,    step: 0.5 },
     { id: 'msp',    label: 'Msp.',           max: 5,    step: 1 },
     { id: 'ng',     label: 'nach Geschmack', max: 0,    step: 0 }
@@ -58,10 +58,10 @@ window.EasyKitchen = window.EasyKitchen || {};
     const nativeState = parse(window.__EK_NATIVE_STATE__);
     let localState = null;
     try { localState = parse(localStorage.getItem(STORAGE_KEY)); } catch (_) {}
-    // Native Datei ist maßgeblich; bei mehreren Quellen gewinnt der neueste Stand
-    const candidates = [nativeState, localState].filter(Boolean);
-    candidates.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    if (candidates[0]) state = candidates[0];
+    // Mac-App: state.json ist immer maßgeblich (sonst könnte eine ältere Browser-Kopie
+    // z. B. eine zurückgespielte state.json überschreiben). localStorage nur als Fallback.
+    if (nativeState) state = nativeState;
+    else if (localState) state = localState;
     state.recipes = state.recipes.map(normalizeRecipe);
     if (!state.settings || typeof state.settings !== 'object') state.settings = {};
   }
@@ -108,11 +108,17 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function normalizeRecipe(r) {
     r = r || {};
+    // Zeiten: Vorbereitung + Zubereitung = Gesamt. Ältere Rezepte hatten nur „time“ → wird zur Zubereitung.
+    const hasSplit = r.prepTime != null || r.cookTime != null;
+    const prepTime = hasSplit ? clampInt(r.prepTime, 0, 1440, 0) : 0;
+    const cookTime = hasSplit ? clampInt(r.cookTime, 0, 1440, 0) : clampInt(r.time, 0, 1440, 30);
     return {
       id: r.id || uid(),
       title: String(r.title || '').trim(),
       image: typeof r.image === 'string' ? r.image : '',
-      time: clampInt(r.time, 0, 1440, 30),
+      prepTime,
+      cookTime,
+      time: Math.min(2880, prepTime + cookTime),
       effort: clampInt(r.effort, 1, 3, 1),
       cost: clampInt(r.cost, 1, 3, 1),
       servings: clampInt(r.servings, 1, 50, 2),
@@ -278,6 +284,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function subscribe(fn) { listeners.push(fn); }
 
   ns.Data = {
+    norm,
     UNITS, UNIT_BY_ID, EFFORT, COST,
     SHARE_FORMAT, init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,
     exportJSON, importJSON, exportShare, parseShare, importRecipes, getSetting, setSetting, parseTerms, matchRecipe, subscribe, hasNativeStorage, uid

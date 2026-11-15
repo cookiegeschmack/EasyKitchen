@@ -22,7 +22,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       font: 11pt/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       color: #24211d; -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-    .recipe { padding: 44px 52px 40px; }
+    .recipe { padding: 44px 52px 16px; }
     .recipe + .recipe { page-break-before: always; break-before: page; }
     .brand { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 22px; border-bottom: 2px solid #e2583e; }
     .brand-left { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12pt; }
@@ -44,6 +44,19 @@ window.EasyKitchen = window.EasyKitchen || {};
     ol.steps li { padding: 0 0 9px 4px; break-inside: avoid; }
     ol.steps li::marker { color: #e2583e; font-weight: 700; }
     .muted { color: #a29a8f; }
+    table.times { width: 100%; border-collapse: collapse; margin: 4px 0 14px; border-top: 1px solid #ece7df; border-bottom: 1px solid #ece7df; }
+    table.times td { width: 33.33%; text-align: center; padding: 9px 6px; }
+    table.times td + td { border-left: 1px solid #ece7df; }
+    table.times span, .nutri td span { display: block; font-size: 9pt; color: #8a8178; }
+    table.times strong { font-size: 12pt; font-weight: 600; }
+    .nutri { margin-top: 26px; padding: 12px 14px 10px; border: 1px solid #ece7df; border-radius: 10px; break-inside: avoid; }
+    .nutri h3 { font-size: 10pt; margin: 0 0 8px; color: #6e675e; text-transform: uppercase; letter-spacing: .05em; }
+    .nutri h3 span { text-transform: none; letter-spacing: 0; font-weight: 400; color: #a29a8f; }
+    .nutri table { width: 100%; border-collapse: collapse; }
+    .nutri td { width: 25%; padding: 2px 0; }
+    .nutri td strong { font-size: 11pt; font-weight: 600; }
+    .nutri p { margin: 8px 0 0; font-size: 8pt; color: #a29a8f; }
+    .nutri + .foot { margin-top: 14px; }
     .foot { margin-top: 30px; padding-top: 10px; border-top: 1px solid #ece7df; font-size: 8.5pt; color: #a29a8f; text-align: center; }
   `;
 
@@ -58,8 +71,12 @@ window.EasyKitchen = window.EasyKitchen || {};
         </div>
         ${r.image ? `<div class="photo"><img src="${r.image}" alt=""></div>` : ''}
         <h1>${esc(r.title)}</h1>
+        <table class="times"><tr>
+          <td><span>Vorbereitung</span><strong>${r.prepTime ? esc(UI.fmtTime(r.prepTime)) : '–'}</strong></td>
+          <td><span>Zubereitung</span><strong>${r.cookTime ? esc(UI.fmtTime(r.cookTime)) : '–'}</strong></td>
+          <td><span>Gesamtzeit</span><strong>${r.time ? esc(UI.fmtTime(r.time)) : '–'}</strong></td>
+        </tr></table>
         <div class="meta">
-          <span>⏱ ${esc(UI.fmtTime(r.time))}</span>
           <span>${esc(D.EFFORT[r.effort])}</span>
           <span>${'€'.repeat(r.cost)}<span class="dim">${'€'.repeat(3 - r.cost)}</span></span>
           <span>${esc(servings)}</span>
@@ -76,6 +93,7 @@ window.EasyKitchen = window.EasyKitchen || {};
             ${steps.length ? `<ol class="steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : '<p class="muted">Keine Zubereitung hinterlegt.</p>'}
           </div>
         </div>
+        ${ns.Nutrition.renderPrintTable(r)}
         <div class="foot">Erstellt mit EasyKitchen – mit EasyKitchen lässt sich diese PDF direkt als Rezept importieren.</div>
       </section>`;
   }

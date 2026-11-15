@@ -7,11 +7,19 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
-    version: '1.1.1',
+    version: '1.2.0',
     date: '2026-11-15',
-    title: 'Fehlerbehebung',
+    title: 'Rezepte des Tages, Favoriten & Nährwerte',
     items: [
-      '🛠 Behoben: EasyKitchen hat sich nach dem Erstellen oder Teilen einer PDF von selbst geschlossen.'
+      '✨ Rezept(e) des Tages: Oben läuft eine kleine Diashow mit zufällig gewählten Lieblingsrezepten – alle 10 Sekunden das nächste, mit Ladebalken und „Nächstes“-Knopf. Ab 30 Rezepten sind es zwei, ab 40 drei.',
+      '★ Favoriten statt Watchlist: Alle Rezepte auf einer Seite, Lieblingsrezepte mit dem Stern markieren und mit „Nur Favoriten“ filtern.',
+      '🔢 Die installierte Version steht jetzt oben neben dem Namen – ist ein Update verfügbar, erscheint dort direkt ein Hinweis.',
+      '↕ Neues Sortier-Menü als Symbol und ein richtiger „Teilen / PDF“-Knopf über der Rezeptliste.',
+      '⏱ Zeiten getrennt nach Vorbereitung und Zubereitung – die Gesamtzeit wird automatisch berechnet und übersichtlich als Tabelle angezeigt (auch in der PDF). Bestehende Rezepte wurden übernommen.',
+      '📊 Nährwerte: Kalorien, Eiweiß, Kohlenhydrate und Fett pro Portion werden aus den Zutaten geschätzt und als Balkendiagramm unten am Rezept angezeigt – schon live beim Eintragen der Zutaten.',
+      '📄 In der PDF stehen die Nährwerte kurz ganz unten.',
+      '🛠 Behoben: EasyKitchen hat sich nach dem Erstellen oder Teilen einer PDF von selbst geschlossen.',
+      '🛠 Behoben: Deine gespeicherten Rezepte haben unter Umständen einen älteren Stand angezeigt.'
     ]
   },
   {
