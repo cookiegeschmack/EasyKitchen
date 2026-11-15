@@ -13,6 +13,10 @@ window.EasyKitchen = window.EasyKitchen || {};
   const RELEASE_PAGE = `https://github.com/${REPO}/releases/latest`;
   const SKIPPED_VER_KEY = 'easykitchen_skipped_update_version';
   const TOKEN_KEY = 'easykitchen_github_release_token';
+  const NOTIFIED_KEY = 'easykitchen_update_notified_version';
+  const RECHECK_MS = 6 * 60 * 60 * 1000;   // bei laufender App alle 6 Stunden
+  const RETRY_MS = 5 * 60 * 1000;          // nach fehlgeschlagener Prüfung in 5 Minuten erneut
+  const auto = { lastCheck: 0, lastOk: false, pending: false, retryTimer: null, started: false };
 
   const UI = ns.UI;
   const $ = UI.$;
@@ -59,6 +63,8 @@ window.EasyKitchen = window.EasyKitchen || {};
   function check(opts) {
     opts = opts || {};
     const manual = !!opts.manual;
+    auto.lastCheck = Date.now();
+    auto.pending = true;
     const simulatedCurrentVersion = opts.simulatedCurrentVersion || '';
     if (manual) setStatus('Prüfe GitHub auf eine neue Version…');
 
@@ -93,6 +99,9 @@ window.EasyKitchen = window.EasyKitchen || {};
   function onCheckResult(res) {
     if (!res) return;
     lastInfo = res;
+    auto.pending = false;
+    auto.lastOk = !!res.ok;
+    if (!res.ok && !res.manual) scheduleRetry();
     const pill = $('update-pill');
     const cur = res.currentVersion || currentVersion();
     syncVersionLabels(cur);
@@ -107,6 +116,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         $('topbar-version').classList.add('outdated');
       }
       if (res.manual) openModal(res);
+      else maybeAnnounce(res, skipped);
     } else if (res.ok) {
       if (pill) pill.hidden = true;
       $('topbar-version').classList.remove('outdated');
@@ -117,6 +127,52 @@ window.EasyKitchen = window.EasyKitchen || {};
       setStatus('Update-Server nicht erreichbar (privates Repo: gh CLI anmelden oder DMG manuell wählen).');
       if (res.manual) openModal(res);
     }
+  }
+
+  // ---------- Automatische Prüfung (Start, Internet zurück, regelmäßig) ----------
+
+  function isOnline() { return navigator.onLine !== false; }
+
+  function autoCheck(reason) {
+    if (auto.pending && Date.now() - auto.lastCheck < 30000) return;   // läuft noch (max. 30 s)
+    if (!isOnline()) return;               // ohne Internet: warten, bis „online“ gemeldet wird
+    clearTimeout(auto.retryTimer);
+    check({ manual: false, reason });
+  }
+
+  function scheduleRetry() {
+    clearTimeout(auto.retryTimer);
+    auto.retryTimer = setTimeout(() => autoCheck('retry'), RETRY_MS);
+  }
+
+  /** Neue Version beim automatischen Prüfen gefunden → Dialog einmal pro Version von selbst zeigen. */
+  function maybeAnnounce(res, skipped) {
+    let notified = '';
+    try { notified = localStorage.getItem(NOTIFIED_KEY) || ''; } catch (_) {}
+    if (skipped === res.latestVersion || notified === res.latestVersion) return;
+    const show = () => {
+      if (UI.topModal()) { setTimeout(show, 1500); return; }   // nicht über „Was ist neu“ o. Ä. legen
+      try { localStorage.setItem(NOTIFIED_KEY, res.latestVersion); } catch (_) {}
+      openModal(res);
+    };
+    show();
+  }
+
+  function startAutoCheck() {
+    if (auto.started) return;
+    auto.started = true;
+    // 1. Beim Start (kurz verzögert, damit die App zuerst fertig lädt)
+    setTimeout(() => {
+      if (isOnline()) autoCheck('start');
+      else setStatus('Keine Internetverbindung – Update-Prüfung erfolgt automatisch, sobald du online bist.');
+    }, 1200);
+    // 2. Internet ist (wieder) da → prüfen, falls noch nicht erfolgreich geprüft
+    window.addEventListener('online', () => { if (!auto.lastOk || Date.now() - auto.lastCheck > RECHECK_MS) autoCheck('online'); });
+    // 3. Zurück im Fenster nach längerer Zeit / regelmäßig während die App läuft
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && Date.now() - auto.lastCheck > RECHECK_MS) autoCheck('focus');
+    });
+    setInterval(() => { if (Date.now() - auto.lastCheck >= RECHECK_MS) autoCheck('interval'); }, 15 * 60 * 1000);
   }
 
   function onProgress(prog) {
@@ -220,7 +276,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   ns.Updater = {
-    currentVersion, check, onCheckResult, onProgress, openModal, syncVersionLabels,
+    currentVersion, check, onCheckResult, onProgress, openModal, syncVersionLabels, startAutoCheck,
     openPillOrCheck() { if (lastInfo) openModal(lastInfo); else check({ manual: true }); }
   };
 })(window.EasyKitchen);

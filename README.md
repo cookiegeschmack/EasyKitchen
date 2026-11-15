@@ -38,7 +38,7 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Einkaufsliste teilen**: als Text (Menge zuerst) über das macOS-Teilen-Menü (WhatsApp, Nachrichten, AirDrop …), als Bild (PNG, Handy-Format) oder als PDF.
 - **Favoriten**: Rezepte mit ★ markieren und per „Nur Favoriten“ filtern (oder „Favoriten zuerst“ sortieren).
 - **Rezept(e) des Tages**: Diashow über der Liste mit täglich zufällig gewählten Lieblingsrezepten (10 s pro Rezept, Ladebalken, „Nächstes“). Unter 30 Rezepten 1, ab 30 zwei, ab 40 drei – unabhängig von Suche und Filtern.
-- **Version & Updates**: Die installierte Version steht oben neben dem Namen; ein verfügbares Update wird direkt daneben angezeigt.
+- **Version & Updates**: Die installierte Version steht oben neben dem Namen. EasyKitchen sucht beim Start automatisch nach Updates, sobald eine Internetverbindung besteht (ohne Internet: sobald die Verbindung da ist; danach alle 6 Stunden). Ein neues Update öffnet einmalig den Update-Dialog, der Hinweis oben bleibt sichtbar.
 - **Teilen & PDF-Export**: Ein Rezept (Detailansicht → „Teilen“) oder alle angezeigten Rezepte als PDF im einheitlichen EasyKitchen-Layout speichern oder per AirDrop/Nachrichten/Mail teilen.
 - **Austausch zwischen EasyKitchen-Nutzern**: `.easykitchen`-Dateien per Doppelklick importieren (inkl. Foto). Auch von EasyKitchen erzeugte PDFs enthalten die Rezeptdaten und werden 1:1 importiert.
 - **Import aus anderen Quellen**: Screenshots, Fotos (PNG, JPG, HEIC, WebP …) und PDFs anderer Anbieter per „Importieren“, Drag & Drop, Einfügen (⌘V) oder „Öffnen mit → EasyKitchen“. Der Text wird lokal mit der macOS-Texterkennung gelesen und als Rezept vorausgefüllt – nur noch prüfen und speichern. Rezepttext lässt sich auch direkt einfügen.

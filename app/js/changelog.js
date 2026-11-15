@@ -15,7 +15,8 @@ window.EasyKitchen.CHANGELOG = [
       '📝 Daraus entsteht automatisch eine Einkaufsliste: gleiche Zutaten werden zusammengefasst und auf deine Portionen umgerechnet, sortiert nach Supermarkt-Bereichen – zum Abhaken, Kopieren, Teilen oder als PDF.',
       '📤 Einkaufsliste teilen: als Text (Menge zuerst) direkt an WhatsApp, Nachrichten, AirDrop & Co., als Bild im Handy-Format oder als PDF.',
       '🎨 Neue Grundfarbe Grün und ein helles Design in sanften Pastellfarben.',
-      '🌗 In den Einstellungen wählst du jetzt selbst: System, Hell oder Dunkel.'
+      '🌗 In den Einstellungen wählst du jetzt selbst: System, Hell oder Dunkel.',
+      '🔄 Automatische Update-Suche: beim Start, sobald eine Internetverbindung besteht (auch wenn sie erst später kommt) und regelmäßig während die App läuft. Neue Versionen werden direkt angezeigt.'
     ]
   },
   {

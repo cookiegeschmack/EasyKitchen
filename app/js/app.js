@@ -858,7 +858,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     renderList();
     U.syncVersionLabels();
     setTimeout(() => showWhatsNew(false), 400);
-    setTimeout(() => U.check({ manual: false }), 1200);
+    U.startAutoCheck();
   }
 
   ns.App = {
