@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EasyKitchen</title>
+  <link rel="icon" href="img/icon-128.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="img/icon-128.png" alt="" class="brand-icon">
+      <span class="brand-name">EasyKitchen</span>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab active" data-view="all" role="tab">Alle Rezepte <span class="tab-count" id="count-all">0</span></button>
+      <button type="button" class="tab" data-view="watch" role="tab">★ Watchlist <span class="tab-count" id="count-watch">0</span></button>
+    </nav>
+
+    <div class="topbar-actions">
+      <button type="button" id="update-pill" class="update-pill" hidden>
+        <span class="update-dot"></span><span id="update-pill-label">Update verfügbar</span>
+      </button>
+      <button type="button" class="icon-btn" id="settings-btn" title="Einstellungen" aria-label="Einstellungen">⚙︎</button>
+      <button type="button" class="btn btn-primary" id="new-recipe-btn">＋ Neues Rezept</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="search-block">
+      <label for="search-input" class="search-label">Was hast du noch zu Hause?</label>
+      <div class="search-field">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input type="search" id="search-input" autocomplete="off" spellcheck="false"
+               placeholder="z. B. Rindfleisch, Paprika, Reis">
+        <button type="button" class="search-clear" id="search-clear" hidden aria-label="Suche leeren">✕</button>
+      </div>
+      <p class="search-hint">Mehrere Zutaten mit Komma oder Leerzeichen trennen – es reicht, wenn eine davon im Rezept vorkommt. Die passendsten Rezepte stehen oben.</p>
+    </section>
+
+    <section class="filters" aria-label="Filter">
+      <div class="filter-group">
+        <span class="filter-title">Kochzeit</span>
+        <div class="chips" data-filter="time">
+          <button type="button" class="chip active" data-value="0">Alle</button>
+          <button type="button" class="chip" data-value="15">≤ 15 Min</button>
+          <button type="button" class="chip" data-value="30">≤ 30 Min</button>
+          <button type="button" class="chip" data-value="60">≤ 60 Min</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-title">Aufwand</span>
+        <div class="chips" data-filter="effort">
+          <button type="button" class="chip active" data-value="0">Alle</button>
+          <button type="button" class="chip" data-value="1">Einfach</button>
+          <button type="button" class="chip" data-value="2">Mittel</button>
+          <button type="button" class="chip" data-value="3">Aufwendig</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-title">Kosten</span>
+        <div class="chips" data-filter="cost">
+          <button type="button" class="chip active" data-value="0">Alle</button>
+          <button type="button" class="chip" data-value="1">€ Günstig</button>
+          <button type="button" class="chip" data-value="2">€€ Mittel</button>
+          <button type="button" class="chip" data-value="3">€€€ Teuer</button>
+        </div>
+      </div>
+      <div class="filter-group filter-sort">
+        <label class="filter-title" for="sort-select">Sortieren</label>
+        <select id="sort-select" class="select">
+          <option value="match">Passend zur Suche</option>
+          <option value="time">Kochzeit</option>
+          <option value="name">Name (A–Z)</option>
+          <option value="new">Neueste zuerst</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="result-bar">
+      <span id="result-info"></span>
+      <button type="button" class="link-btn" id="reset-filters" hidden>Filter zurücksetzen</button>
+    </div>
+
+    <section id="recipe-grid" class="grid" aria-live="polite"></section>
+
+    <section id="empty-state" class="empty" hidden></section>
+  </main>
+
+  <footer class="footer">
+    EasyKitchen <span id="version-label">v1.0.0</span> · Entwickelt von Duc Anh Hönemann
+  </footer>
+
+  <!-- Rezept-Editor -->
+  <div class="modal" id="editor-modal" hidden>
+    <div class="modal-backdrop" data-close="editor-modal"></div>
+    <form class="modal-card modal-wide" id="editor-form" novalidate>
+      <div class="modal-head">
+        <h2 id="editor-title">Neues Rezept</h2>
+        <button type="button" class="icon-btn" data-close="editor-modal" aria-label="Schließen">✕</button>
+      </div>
+
+      <div class="modal-body editor-body">
+        <div class="field">
+          <label for="ed-title">Name des Gerichts <span class="req">*</span></label>
+          <input type="text" id="ed-title" class="input" placeholder="z. B. Rindfleisch-Paprika-Pfanne" maxlength="120">
+        </div>
+
+        <div class="field">
+          <span class="field-label">Foto <span class="opt">(optional)</span></span>
+          <div class="photo-drop" id="photo-drop" tabindex="0" role="button" aria-label="Foto hinzufügen">
+            <img id="photo-preview" alt="" hidden>
+            <div class="photo-placeholder" id="photo-placeholder">
+              <span class="photo-icon">📷</span>
+              <span>Foto auswählen oder hierher ziehen</span>
+            </div>
+            <button type="button" class="photo-remove" id="photo-remove" hidden aria-label="Foto entfernen">✕</button>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" hidden>
+        </div>
+
+        <div class="field-row three">
+          <div class="field">
+            <label for="ed-time">Kochzeit</label>
+            <div class="inline-range">
+              <input type="range" id="ed-time-range" min="5" max="180" step="5" value="30" aria-label="Kochzeit Regler">
+              <div class="num-unit"><input type="number" id="ed-time" class="input input-num" min="0" max="1440" value="30"><span>Min</span></div>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Aufwand</span>
+            <div class="segmented" data-seg="effort">
+              <button type="button" data-value="1" class="active">Einfach</button>
+              <button type="button" data-value="2">Mittel</button>
+              <button type="button" data-value="3">Aufwendig</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Kosten</span>
+            <div class="segmented" data-seg="cost">
+              <button type="button" data-value="1" class="active">€</button>
+              <button type="button" data-value="2">€€</button>
+              <button type="button" data-value="3">€€€</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <span class="field-label">Zutaten <span class="req">*</span></span>
+            <div class="servings">
+              <span>Portionen</span>
+              <button type="button" class="step-btn" data-serv="-1" aria-label="Weniger Portionen">−</button>
+              <input type="number" id="ed-servings" class="input input-num small" min="1" max="50" value="2">
+              <button type="button" class="step-btn" data-serv="1" aria-label="Mehr Portionen">+</button>
+            </div>
+          </div>
+          <div id="ing-list" class="ing-list"></div>
+          <button type="button" class="btn btn-ghost add-ing" id="add-ing-btn">＋ Zutat hinzufügen</button>
+          <p class="field-error" id="ing-error" hidden>Bitte mindestens eine Zutat eintragen.</p>
+        </div>
+
+        <div class="field">
+          <label for="ed-steps">Zubereitung</label>
+          <textarea id="ed-steps" class="input textarea" rows="7"
+                    placeholder="Jeder Schritt in eine eigene Zeile, z. B.&#10;Rindfleisch in Streifen schneiden&#10;Paprika anbraten …"></textarea>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="ed-watch">
+          <span>Auf die Watchlist setzen</span>
+        </label>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close="editor-modal">Abbrechen</button>
+        <button type="submit" class="btn btn-primary">Rezept speichern</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Rezept-Detail -->
+  <div class="modal" id="detail-modal" hidden>
+    <div class="modal-backdrop" data-close="detail-modal"></div>
+    <article class="modal-card modal-wide" id="detail-card"></article>
+  </div>
+
+  <!-- Einstellungen -->
+  <div class="modal" id="settings-modal" hidden>
+    <div class="modal-backdrop" data-close="settings-modal"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Einstellungen</h2>
+        <button type="button" class="icon-btn" data-close="settings-modal" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <section class="settings-section">
+          <h3>Updates</h3>
+          <p class="muted"><span class="version-chip" id="settings-version">v1.0.0</span> <span id="settings-update-status">Automatische Update-Prüfung beim Start aktiv.</span></p>
+          <button type="button" class="btn btn-secondary" id="check-update-btn">Nach Updates suchen</button>
+        </section>
+        <section class="settings-section">
+          <h3>Backup</h3>
+          <p class="muted">Sichere alle Rezepte (inkl. Fotos) als JSON-Datei oder lade ein Backup. Beim Laden werden Rezepte ergänzt, nichts wird gelöscht.</p>
+          <div class="btn-row">
+            <button type="button" class="btn btn-secondary" id="export-btn">Backup speichern</button>
+            <button type="button" class="btn btn-secondary" id="import-btn">Backup laden</button>
+            <input type="file" id="import-input" accept=".json,application/json" hidden>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h3>Speicherort</h3>
+          <p class="muted" id="storage-info"></p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Update-Dialog (Inhalt wird dynamisch erzeugt) -->
+  <div class="modal" id="update-modal" hidden>
+    <div class="modal-backdrop" data-close="update-modal"></div>
+    <div class="modal-card" id="update-card"></div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/updater.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

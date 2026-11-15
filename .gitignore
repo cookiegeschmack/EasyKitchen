@@ -1,0 +1,28 @@
+# macOS System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build Artifacts & Temporary Files
+.build/
+.dmg_temp/
+*.log
+
+# App Bundle (wird via ./build_mac_app.sh aus Quellcode gebaut)
+EasyKitchen.app/
+
+# Disk-Image & Release-Artefakte (nur als GitHub-Release-Assets, nicht im Repo)
+*.dmg
+.build_Start-Windows.bat
+
+# Persönliche Daten & Backups
+*Backup*.json
+*backup*.json
+state.json
+
+# Lokale Claude-/Editor-Einstellungen
+.claude/
