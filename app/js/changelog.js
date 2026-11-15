@@ -7,6 +7,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.3.1',
+    date: '2026-11-15',
+    title: 'Neues Logo',
+    items: [
+      '🍳 Das EasyKitchen-Logo erscheint jetzt in der grünen Grundfarbe – im Dock, im Finder, in der App und in den PDFs.'
+    ]
+  },
+  {
     version: '1.3.0',
     date: '2026-11-15',
     title: 'Wocheneinkaufsplaner, Grün & Pastell',
