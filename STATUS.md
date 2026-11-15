@@ -4,6 +4,15 @@
 > Build: `./build_mac_app.sh` · Release: `./publish_release.sh "Notizen"` · JS-Check: `node --check app/js/*.js`
 > Struktur und Updater übernommen von FinPilot (`cookiegeschmack/FinPilot`).
 
+## v1.2.0 – Branch `feature/ui-favoriten-tagesrezepte`
+
+| # | Aufgabe | Datei(en) | Status |
+|---|---|---|---|
+| 1 | Version oben neben dem Namen (Klick = Update-Prüfung), Update-Hinweis direkt daneben | `index.html`, `updater.js` | ✅ |
+| 2 | Watchlist-Tab entfernt → Favoriten-Stern + Filter „Nur Favoriten“, Sortierung „Favoriten zuerst“ | `index.html`, `app.js` | ✅ |
+| 3 | Sortieren als Icon-Menü, „Teilen / PDF“ als Button | `index.html`, `app.js`, `styles.css` | ✅ |
+| 4 | Rezept(e) des Tages: Diashow (10 s, Balken, Nächstes/Punkte, Pause bei Hover/Dialog), Auswahl täglich deterministisch aus Favoriten (aufgefüllt mit anderen); 1 / 2 (ab 30) / 3 (ab 40) | `app.js`, `styles.css` | ✅ |
+
 ## v1.2.0 (2026-11-15) – Zeiten-Tabelle, Nährwerte & Fehlerbehebungen
 
 | # | Aufgabe | Datei(en) | Status |

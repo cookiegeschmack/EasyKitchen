@@ -47,6 +47,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     v = v || currentVersion();
     const a = $('version-label'); if (a) a.textContent = 'v' + v;
     const b = $('settings-version'); if (b) b.textContent = 'v' + v;
+    const c = $('topbar-version'); if (c) c.textContent = 'v' + v;
   }
 
   function openExternal(url) {
@@ -101,12 +102,15 @@ window.EasyKitchen = window.EasyKitchen || {};
       try { skipped = localStorage.getItem(SKIPPED_VER_KEY) || ''; } catch (_) {}
       setStatus(`Neue Version v${res.latestVersion} verfügbar.`);
       if (pill && (res.manual || skipped !== res.latestVersion)) {
-        $('update-pill-label').textContent = `Update v${res.latestVersion}`;
+        $('update-pill-label').textContent = `Update auf v${res.latestVersion} verfügbar`;
         pill.hidden = false;
+        $('topbar-version').classList.add('outdated');
       }
       if (res.manual) openModal(res);
     } else if (res.ok) {
       if (pill) pill.hidden = true;
+      $('topbar-version').classList.remove('outdated');
+      $('topbar-version').title = `v${cur} – aktuellste Version installiert (klicken, um erneut zu prüfen)`;
       setStatus(`Du hast die aktuellste Version (v${cur}).`);
       if (res.manual) UI.toast(`EasyKitchen ist auf dem neuesten Stand (v${cur}) ✓`);
     } else {
