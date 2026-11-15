@@ -30,10 +30,11 @@ func renderIcon(size: Int) -> Data? {
     path.fill()
     NSGraphicsContext.current?.restoreGraphicsState()
 
-    // Warmer Verlauf (Tomate → Orange)
+    // Frischer Verlauf in der App-Grundfarbe (Grün → helles Pastellgrün)
     let gradient = NSGradient(colors: [
-        NSColor(red: 0.96, green: 0.42, blue: 0.29, alpha: 1),
-        NSColor(red: 0.99, green: 0.67, blue: 0.30, alpha: 1)
+        NSColor(red: 0.20, green: 0.50, blue: 0.35, alpha: 1),   // #33805A
+        NSColor(red: 0.25, green: 0.58, blue: 0.41, alpha: 1),   // #3F9468 (App-Akzent)
+        NSColor(red: 0.53, green: 0.80, blue: 0.64, alpha: 1)    // #87CCA3
     ])!
     gradient.draw(in: path, angle: 60)
 
@@ -47,7 +48,7 @@ func renderIcon(size: Int) -> Data? {
     plate.fill()
     let innerR = 230 * k
     let inner = NSBezierPath(ovalIn: NSRect(x: center.x - innerR, y: center.y - innerR, width: innerR * 2, height: innerR * 2))
-    NSColor(red: 1, green: 0.95, blue: 0.9, alpha: 1).setFill()
+    NSColor(red: 0.91, green: 0.97, blue: 0.93, alpha: 1).setFill()   // zartes Mint
     inner.fill()
     NSGraphicsContext.current?.restoreGraphicsState()
 
