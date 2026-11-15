@@ -15,4 +15,4 @@
 | 5 | Rezept-Editor (Pflicht: Name + Zutaten; Foto optional; Menge per Feld/Regler/±, einheitenabhängig) | `app/js/app.js`, `app/index.html` | ✅ |
 | 6 | Liste, Watchlist, Filter (Kochzeit/Aufwand/Kosten), Sortierung, Detailansicht | `app/js/app.js`, `app/css/styles.css` | ✅ |
 | 7 | Getestet im Browser (Anlegen, Foto, Suche, Filter, Watchlist, Persistenz) und als native App gestartet | – | ✅ |
-| 8 | Erstes GitHub-Release v1.0.0 veröffentlichen | `publish_release.sh` | ⏳ offen |
+| 8 | Erstes GitHub-Release v1.0.0 veröffentlicht (EasyKitchen.dmg + Start-Windows.bat) | `publish_release.sh` | ✅ |
