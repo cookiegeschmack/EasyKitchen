@@ -32,6 +32,10 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Reste-Suche**: Gib ein, was du noch hast (z. B. `Rindfleisch, Paprika`). Es erscheinen alle Rezepte, in denen mindestens eine dieser Zutaten vorkommt – die passendsten zuerst, mit Anzeige „✓ 2 von 6 Zutaten da“.
 - **Filter**: Kochzeit (≤ 15 / 30 / 60 Min), Aufwand (einfach / mittel / aufwendig), Kosten (€ / €€ / €€€) und Sortierung.
 - **Watchlist**: Rezepte mit ★ markieren, die du bald kochen möchtest – eigener Reiter, gleiche Suche & Filter.
+- **Teilen & PDF-Export**: Ein Rezept (Detailansicht → „Teilen“) oder alle angezeigten Rezepte als PDF im einheitlichen EasyKitchen-Layout speichern oder per AirDrop/Nachrichten/Mail teilen.
+- **Austausch zwischen EasyKitchen-Nutzern**: `.easykitchen`-Dateien per Doppelklick importieren (inkl. Foto). Auch von EasyKitchen erzeugte PDFs enthalten die Rezeptdaten und werden 1:1 importiert.
+- **Import aus anderen Quellen**: Screenshots, Fotos (PNG, JPG, HEIC, WebP …) und PDFs anderer Anbieter per „Importieren“, Drag & Drop, Einfügen (⌘V) oder „Öffnen mit → EasyKitchen“. Der Text wird lokal mit der macOS-Texterkennung gelesen und als Rezept vorausgefüllt – nur noch prüfen und speichern. Rezepttext lässt sich auch direkt einfügen.
+- **„Was ist neu“**: Nach jedem Update zeigt EasyKitchen einmalig, was dazugekommen ist (Einträge in `app/js/changelog.js`).
 - **Backup**: Export/Import aller Rezepte inkl. Fotos als JSON (⚙︎ Einstellungen).
 - **Tastenkürzel**: `⌘N` neues Rezept, `⌘F` oder `/` Suche, `Esc` schließt Dialoge.
 
@@ -51,6 +55,8 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 ./build_dmg.sh                # EasyKitchen.dmg erzeugen
 ./publish_release.sh "Text"   # Version +1, bauen, committen, als GitHub Latest Release veröffentlichen
 ```
+
+**Vor einem Release** die Neuerungen oben in `app/js/changelog.js` eintragen – daraus entstehen der „Was ist neu“-Dialog und die GitHub-Release-Notizen. Fehlt der Eintrag, legt das Skript ihn aus der Beschreibung an (mehrere Punkte mit `;` trennen). Für ein Funktions-Update die Version explizit angeben, z. B. `./publish_release.sh 1.2.0 "…"`.
 
 `publish_release.sh` erhöht die Patch-Version automatisch (1.0.0 → 1.0.1), synchronisiert sie in `macos/Info.plist`, `app/js/updater.js` und `app/index.html` und lädt `EasyKitchen.dmg` + eine All-in-One `Start-Windows.bat` als Release hoch. Beim allerersten Release wird die aktuelle Version (1.0.0) verwendet.
 

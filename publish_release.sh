@@ -91,6 +91,34 @@ with open(html_path, "w", encoding="utf-8") as f:
     f.write(t)
 ' "$PLIST" "$DIR/app/js/updater.js" "$DIR/app/index.html" "$CLEAN_VER"
 
+# 4b) „Was ist neu“: Changelog-Eintrag sicherstellen & Release-Notizen daraus erzeugen
+#     Fehlt in app/js/changelog.js ein Eintrag für diese Version, wird er aus der
+#     Release-Beschreibung angelegt (mehrere Punkte mit „;“ trennen).
+CHANGELOG="$DIR/app/js/changelog.js"
+NOTES_FILE=$(mktemp)
+python3 - "$CHANGELOG" "$CLEAN_VER" "$NOTES" "$NOTES_FILE" <<'PYCL'
+import re, sys, json, datetime
+path, ver, notes, out = sys.argv[1:5]
+src = open(path, encoding="utf-8").read()
+if f"version: '{ver}'" not in src:
+    items = [x.strip() for x in re.split(r";|\n", notes) if x.strip()] or [f"Verbesserungen und Fehlerbehebungen."]
+    title = items[0] if len(items) == 1 else "Update"
+    entry = "\n  {\n    version: '%s',\n    date: '%s',\n    title: %s,\n    items: [\n%s\n    ]\n  }," % (
+        ver, datetime.date.today().isoformat(), json.dumps(title, ensure_ascii=False),
+        ",\n".join("      " + json.dumps(i, ensure_ascii=False) for i in items))
+    src = src.replace("// @@CHANGELOG_START@@", "// @@CHANGELOG_START@@" + entry, 1)
+    open(path, "w", encoding="utf-8").write(src)
+    print(f"  ✓ Changelog-Eintrag für v{ver} angelegt")
+m = re.search(r"version: '%s'.*?title: (\"[^\"]*\"|'[^']*').*?items: \[(.*?)\]" % re.escape(ver), src, re.S)
+lines = []
+if m:
+    title = m.group(1)[1:-1]
+    found = re.findall(r"(?:'((?:[^'\\]|\\.)*)'|\"((?:[^\"\\]|\\.)*)\")", m.group(2))
+    items = [a or b for a, b in found]
+    lines = [f"## Was ist neu – {title}", ""] + [f"- {i}" for i in items]
+open(out, "w", encoding="utf-8").write("\n".join(lines) or notes)
+PYCL
+
 # 5) EasyKitchen.app & EasyKitchen.dmg frisch bauen
 bash "$DIR/build_dmg.sh"
 
@@ -171,9 +199,9 @@ with open(out_bat, "w", encoding="utf-8", newline="\r\n") as f:
 PY
 
 # 7) Versions-Dateien committen & pushen (damit git status sauber bleibt)
-if ! git -C "$DIR" diff --quiet -- "$PLIST" "$DIR/app/js/updater.js" "$DIR/app/index.html"; then
+if ! git -C "$DIR" diff --quiet -- "$PLIST" "$DIR/app/js/updater.js" "$DIR/app/index.html" "$CHANGELOG"; then
   echo "▶︎ Committe & pushe aktualisierte Release-Dateien ($TAG) …"
-  git -C "$DIR" add "$PLIST" "$DIR/app/js/updater.js" "$DIR/app/index.html"
+  git -C "$DIR" add "$PLIST" "$DIR/app/js/updater.js" "$DIR/app/index.html" "$CHANGELOG"
   git -C "$DIR" commit -m "chore(release): $TAG – $NOTES" || true
   git -C "$DIR" push || true
 fi
@@ -185,12 +213,12 @@ if command -v gh >/dev/null 2>&1; then
   cp "$WIN_RELEASE_BAT" "$TMP_BAT_DIR/Start-Windows.bat"
   if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
     gh release upload "$TAG" "$DIR/EasyKitchen.dmg" "$TMP_BAT_DIR/Start-Windows.bat" --repo "$REPO" --clobber
-    gh release edit "$TAG" --repo "$REPO" --title "EasyKitchen $TAG" --notes "$NOTES" --latest
+    gh release edit "$TAG" --repo "$REPO" --title "EasyKitchen $TAG" --notes-file "$NOTES_FILE" --latest
   else
     gh release create "$TAG" "$DIR/EasyKitchen.dmg" "$TMP_BAT_DIR/Start-Windows.bat" \
-      --repo "$REPO" --title "EasyKitchen $TAG" --notes "$NOTES" --latest
+      --repo "$REPO" --title "EasyKitchen $TAG" --notes-file "$NOTES_FILE" --latest
   fi
-  rm -rf "$WIN_RELEASE_BAT" "$TMP_BAT_DIR"
+  rm -rf "$WIN_RELEASE_BAT" "$TMP_BAT_DIR" "$NOTES_FILE"
   rm -f "$DIR/EasyKitchen.dmg"
   echo "🧹 Lokale EasyKitchen.dmg nach erfolgreichem Upload gelöscht."
   echo "✅ Release $TAG ist jetzt als Latest Release auf GitHub live!"

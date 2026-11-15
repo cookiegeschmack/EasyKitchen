@@ -24,6 +24,7 @@
         <span class="update-dot"></span><span id="update-pill-label">Update verfügbar</span>
       </button>
       <button type="button" class="icon-btn" id="settings-btn" title="Einstellungen" aria-label="Einstellungen">⚙︎</button>
+      <button type="button" class="btn btn-secondary" id="import-recipe-btn" title="Rezept aus Screenshot, PDF, Text oder EasyKitchen-Datei importieren">⤓ Importieren</button>
       <button type="button" class="btn btn-primary" id="new-recipe-btn">＋ Neues Rezept</button>
     </div>
   </header>
@@ -82,6 +83,7 @@
     <div class="result-bar">
       <span id="result-info"></span>
       <button type="button" class="link-btn" id="reset-filters" hidden>Filter zurücksetzen</button>
+      <button type="button" class="link-btn result-export" id="export-list-btn" hidden>Angezeigte teilen / als PDF</button>
     </div>
 
     <section id="recipe-grid" class="grid" aria-live="polite"></section>
@@ -103,6 +105,13 @@
       </div>
 
       <div class="modal-body editor-body">
+        <div class="import-notice" id="editor-notice" hidden>
+          <div><strong>Automatisch erkannt</strong> – bitte Name, Mengen und Schritte kurz prüfen und bei Bedarf korrigieren.</div>
+          <details>
+            <summary>Erkannten Originaltext anzeigen</summary>
+            <pre id="editor-source"></pre>
+          </details>
+        </div>
         <div class="field">
           <label for="ed-title">Name des Gerichts <span class="req">*</span></label>
           <input type="text" id="ed-title" class="input" placeholder="z. B. Rindfleisch-Paprika-Pfanne" maxlength="120">
@@ -211,11 +220,60 @@
           </div>
         </section>
         <section class="settings-section">
+          <h3>Neuigkeiten</h3>
+          <p class="muted">Sieh dir noch einmal an, was in den letzten Versionen dazugekommen ist.</p>
+          <button type="button" class="btn btn-secondary" id="whatsnew-btn">Was ist neu?</button>
+        </section>
+        <section class="settings-section">
           <h3>Speicherort</h3>
           <p class="muted" id="storage-info"></p>
         </section>
       </div>
     </div>
+  </div>
+
+  <!-- Import -->
+  <div class="modal" id="import-modal" hidden>
+    <div class="modal-backdrop" data-close="import-modal"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Rezept importieren</h2>
+        <button type="button" class="icon-btn" data-close="import-modal" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="import-drop" id="import-drop" tabindex="0" role="button" aria-label="Dateien auswählen">
+          <div class="import-drop-icon">⤓</div>
+          <strong>Screenshots, Fotos, PDFs oder EasyKitchen-Dateien</strong>
+          <span>hierher ziehen, einfügen (⌘V) oder klicken zum Auswählen</span>
+          <span class="import-formats">PNG · JPG · HEIC · WebP · PDF · .easykitchen – mehrere Screenshots eines Rezepts auf einmal möglich</span>
+          <div class="import-busy" id="import-busy" hidden><span class="spinner"></span><span id="import-busy-text"></span></div>
+        </div>
+        <input type="file" id="import-input-files" multiple hidden
+               accept="image/*,.heic,.heif,.pdf,application/pdf,.easykitchen,.json,.txt,text/plain">
+        <div class="or-line"><span>oder Text einfügen</span></div>
+        <textarea id="import-text" class="input textarea" rows="5" placeholder="Rezepttext von einer Webseite oder aus Notizen hier einfügen …"></textarea>
+        <div class="import-text-actions">
+          <button type="button" class="btn btn-secondary" id="import-text-btn">Text als Rezept übernehmen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="import-confirm" hidden>
+    <div class="modal-backdrop" data-close="import-confirm"></div>
+    <div class="modal-card" id="import-confirm-card"></div>
+  </div>
+
+  <!-- Teilen -->
+  <div class="modal" id="share-modal" hidden>
+    <div class="modal-backdrop" data-close="share-modal"></div>
+    <div class="modal-card modal-share" id="share-card"></div>
+  </div>
+
+  <!-- Was ist neu -->
+  <div class="modal" id="whatsnew-modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-card" id="whatsnew-card"></div>
   </div>
 
   <!-- Update-Dialog (Inhalt wird dynamisch erzeugt) -->
@@ -228,7 +286,10 @@
 
   <script src="js/data.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/changelog.js"></script>
   <script src="js/updater.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/importer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

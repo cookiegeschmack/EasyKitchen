@@ -7,6 +7,8 @@
 import Cocoa
 import WebKit
 import UniformTypeIdentifiers
+import PDFKit
+import Vision
 
 let APP_NAME = "EasyKitchen"
 let GITHUB_REPO = "cookiegeschmack/EasyKitchen"
@@ -20,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     var pendingUpdateToken: String?
     var isTerminatingForUpdate = false
     var terminationReplySent = false
+    var webReady = false
+    var pendingOpenURLs: [URL] = []
+    var pdfJobs: [PDFJob] = []
 
     var currentAppVersion: String {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0.0"
@@ -88,7 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let config = WKWebViewConfiguration()
         let controller = WKUserContentController()
         for name in ["nativeStorage", "nativeExport", "nativeImport", "nativeCheckUpdate",
-                     "nativePerformUpdate", "nativeInstallLocalDMG", "nativeOpenURL"] {
+                     "nativePerformUpdate", "nativeInstallLocalDMG", "nativeOpenURL",
+                     "nativeExportPDF", "nativeShareFile", "nativeRecognize"] {
             controller.add(self, name: name)
         }
         updateBootstrapScript(on: controller, with: nil)
@@ -153,16 +159,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         case "nativeExport":
             guard let dict = message.body as? [String: Any],
                   let content = dict["content"] as? String else { return }
+            let filename = (dict["filename"] as? String) ?? "easykitchen-backup.json"
+            let toastText = (dict["toast"] as? String) ?? "Gespeichert ✓"
             let panel = NSSavePanel()
-            panel.nameFieldStringValue = (dict["filename"] as? String) ?? "easykitchen-backup.json"
-            panel.allowedContentTypes = [.json]
+            panel.nameFieldStringValue = filename
+            panel.allowedContentTypes = [contentType(forFilename: filename)]
             panel.beginSheetModal(for: window) { [weak self] resp in
-                guard resp == .OK, let url = panel.url else { return }
+                guard let self = self, resp == .OK, let url = panel.url else { return }
                 do {
                     try content.write(to: url, atomically: true, encoding: .utf8)
-                    self?.webView.evaluateJavaScript("\(JS_NS).UI && \(JS_NS).UI.toast('Backup gespeichert ✓')")
+                    self.toast(toastText)
                 } catch {
-                    self?.showAlert("Backup konnte nicht gespeichert werden: \(error.localizedDescription)")
+                    self.showAlert("Datei konnte nicht gespeichert werden: \(error.localizedDescription)")
                 }
             }
         case "nativeImport":
@@ -181,6 +189,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                     self.showAlert("Backup konnte nicht gelesen werden: \(error.localizedDescription)")
                 }
             }
+        case "nativeExportPDF":
+            exportPDF(dict: (message.body as? [String: Any]) ?? [:])
+        case "nativeShareFile":
+            guard let dict = message.body as? [String: Any],
+                  let content = dict["content"] as? String,
+                  let filename = dict["filename"] as? String else { return }
+            let url = tempFileURL(filename)
+            do {
+                try content.write(to: url, atomically: true, encoding: .utf8)
+                share(urls: [url])
+            } catch {
+                showAlert("Datei konnte nicht vorbereitet werden: \(error.localizedDescription)")
+            }
+        case "nativeRecognize":
+            recognize(dict: (message.body as? [String: Any]) ?? [:])
         case "nativeOpenURL":
             if let s = message.body as? String, let url = URL(string: s) { NSWorkspace.shared.open(url) }
         case "nativeCheckUpdate":
@@ -233,17 +256,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
         let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = [.image, .json]
-        panel.directoryURL = FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
+        var types: [UTType] = [.image, .json, .pdf, .plainText]
+        if let ek = UTType(filenameExtension: "easykitchen") { types.append(ek) }
+        panel.allowedContentTypes = types
         panel.beginSheetModal(for: window) { resp in
             completionHandler(resp == .OK ? panel.urls : nil)
         }
     }
 
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard webView === self.webView else { return }
+        webReady = true
+        flushPendingOpenURLs()
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if webView !== self.webView { decisionHandler(.allow); return }
         if let url = navigationAction.request.url, url.scheme == "http" || url.scheme == "https" {
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
@@ -257,6 +288,271 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         alert.messageText = APP_NAME
         alert.informativeText = text
         alert.runModal()
+    }
+
+    func toast(_ text: String) {
+        webView?.evaluateJavaScript("\(JS_NS).UI && \(JS_NS).UI.toast(\(jsStringLiteral(text)))")
+    }
+
+    func contentType(forFilename name: String) -> UTType {
+        let ext = (name as NSString).pathExtension.lowercased()
+        if ext == "json" { return .json }
+        if ext == "pdf" { return .pdf }
+        return UTType(filenameExtension: ext) ?? .data
+    }
+
+    func tempFileURL(_ filename: String) -> URL {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("easykitchen_share_\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let safe = filename.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        return dir.appendingPathComponent(safe)
+    }
+
+    /// macOS-Teilen-Menü (AirDrop, Nachrichten, Mail, …) unter dem Mauszeiger öffnen.
+    func share(urls: [URL]) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let view = self.webView, let win = self.window else { return }
+            let picker = NSSharingServicePicker(items: urls)
+            var p = view.convert(win.mouseLocationOutsideOfEventStream, from: nil)
+            if !view.bounds.contains(p) { p = NSPoint(x: view.bounds.midX, y: view.bounds.midY) }
+            picker.show(relativeTo: NSRect(x: p.x - 1, y: p.y - 1, width: 2, height: 2), of: view, preferredEdge: .minY)
+        }
+    }
+
+    // MARK: Dateien per Finder öffnen („Öffnen mit“, Doppelklick auf .easykitchen)
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        pendingOpenURLs.append(contentsOf: urls)
+        if webReady { flushPendingOpenURLs() }
+    }
+
+    func flushPendingOpenURLs() {
+        guard !pendingOpenURLs.isEmpty else { return }
+        let urls = pendingOpenURLs
+        pendingOpenURLs.removeAll()
+        let files: [[String: Any]] = urls.compactMap { url in
+            guard let data = try? Data(contentsOf: url) else { return nil }
+            return ["name": url.lastPathComponent, "base64": data.base64EncodedString()]
+        }
+        sendJSONToJS(fn: "\(JS_NS).App.importFiles", payload: ["files": files])
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: PDF-Export (HTML → paginierte A4-PDF, Rezeptdaten eingebettet)
+
+    final class PDFJob: NSObject, WKNavigationDelegate {
+        let html: String
+        let embed: String
+        let target: URL
+        let share: Bool
+        weak var owner: AppDelegate?
+        var win: NSWindow!
+        var web: WKWebView!
+
+        init(html: String, embed: String, target: URL, share: Bool, owner: AppDelegate) {
+            self.html = html; self.embed = embed; self.target = target; self.share = share; self.owner = owner
+        }
+
+        func start(baseURL: URL?) {
+            // A4 bei 96 dpi; unsichtbares Fenster, damit WebKit korrekt layoutet
+            let frame = NSRect(x: 0, y: 0, width: 794, height: 1123)
+            win = NSWindow(contentRect: frame.offsetBy(dx: -20000, dy: -20000), styleMask: [.borderless], backing: .buffered, defer: false)
+            win.isReleasedWhenClosed = false
+            web = WKWebView(frame: frame)
+            web.navigationDelegate = self
+            win.contentView = web
+            web.loadHTMLString(html, baseURL: baseURL)
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // kurz warten, bis eingebettete Fotos dekodiert sind
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.print() }
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { finish(false) }
+
+        func print() {
+            let info = NSPrintInfo()
+            info.paperSize = NSSize(width: 595.28, height: 841.89)
+            info.topMargin = 0; info.bottomMargin = 0; info.leftMargin = 0; info.rightMargin = 0
+            info.horizontalPagination = .fit
+            info.verticalPagination = .automatic
+            info.isHorizontallyCentered = false
+            info.isVerticallyCentered = false
+            info.jobDisposition = .save
+            info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = target
+            let op = web.printOperation(with: info)
+            op.showsPrintPanel = false
+            op.showsProgressPanel = false
+            op.view?.frame = web.bounds
+            op.runModal(for: win, delegate: self, didRun: #selector(printDone(_:success:contextInfo:)), contextInfo: nil)
+        }
+
+        @objc func printDone(_ op: NSPrintOperation, success: Bool, contextInfo: UnsafeMutableRawPointer?) {
+            if success, !embed.isEmpty, let doc = PDFDocument(url: target) {
+                var attrs = doc.documentAttributes ?? [:]
+                attrs[PDFDocumentAttribute.titleAttribute] = target.deletingPathExtension().lastPathComponent
+                attrs[PDFDocumentAttribute.creatorAttribute] = APP_NAME
+                attrs[PDFDocumentAttribute.keywordsAttribute] = ["EasyKitchen", "EKDATA:" + Data(embed.utf8).base64EncodedString()]
+                doc.documentAttributes = attrs
+                _ = doc.write(to: target)
+            }
+            finish(success)
+        }
+
+        func finish(_ success: Bool) {
+            web?.navigationDelegate = nil
+            win?.close()
+            owner?.pdfJobFinished(self, success: success)
+        }
+    }
+
+    func exportPDF(dict: [String: Any]) {
+        guard let html = dict["html"] as? String else { return }
+        let filename = (dict["filename"] as? String) ?? "Rezept.pdf"
+        let embed = (dict["embed"] as? String) ?? ""
+        let wantsShare = (dict["action"] as? String) == "share"
+        let baseURL = Bundle.main.resourceURL?.appendingPathComponent("app", isDirectory: true)
+
+        let run: (URL) -> Void = { [weak self] url in
+            guard let self = self else { return }
+            let job = PDFJob(html: html, embed: embed, target: url, share: wantsShare, owner: self)
+            self.pdfJobs.append(job)
+            job.start(baseURL: baseURL)
+        }
+        if wantsShare {
+            run(tempFileURL(filename))
+        } else {
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = filename
+            panel.allowedContentTypes = [.pdf]
+            panel.beginSheetModal(for: window) { resp in
+                guard resp == .OK, let url = panel.url else { return }
+                run(url)
+            }
+        }
+    }
+
+    func pdfJobFinished(_ job: PDFJob, success: Bool) {
+        pdfJobs.removeAll { $0 === job }
+        guard success else {
+            showAlert("Die PDF konnte nicht erstellt werden.")
+            return
+        }
+        if job.share {
+            share(urls: [job.target])
+        } else {
+            toast("PDF gespeichert ✓")
+            NSWorkspace.shared.activateFileViewerSelecting([job.target])
+        }
+    }
+
+    // MARK: Import – Texterkennung (Vision) für Bilder & PDFs
+
+    func recognize(dict: [String: Any]) {
+        let jobId = (dict["id"] as? String) ?? ""
+        let files = (dict["files"] as? [[String: Any]]) ?? []
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            if files.isEmpty { self.warmUpOCR(); return }
+            var results: [[String: Any]] = []
+            for f in files {
+                let name = (f["name"] as? String) ?? "Datei"
+                guard let b64 = f["base64"] as? String, let data = Data(base64Encoded: b64) else {
+                    results.append(["name": name, "error": "Datei konnte nicht gelesen werden."])
+                    continue
+                }
+                results.append(self.recognizeFile(name: name, data: data))
+            }
+            self.sendJSONToJS(fn: "\(JS_NS).App.onRecognizeResult", payload: ["id": jobId, "results": results])
+        }
+    }
+
+    func recognizeFile(name: String, data: Data) -> [String: Any] {
+        let isPDF = name.lowercased().hasSuffix(".pdf") || data.starts(with: [0x25, 0x50, 0x44, 0x46])
+        if isPDF {
+            guard let doc = PDFDocument(data: data) else { return ["name": name, "error": "PDF konnte nicht geöffnet werden."] }
+            // Von EasyKitchen erzeugte PDF? → exakte Rezeptdaten statt Texterkennung
+            if let kw = doc.documentAttributes?[PDFDocumentAttribute.keywordsAttribute] {
+                let words: [String] = (kw as? [String]) ?? [(kw as? String) ?? ""]
+                for w in words {
+                    if let r = w.range(of: "EKDATA:"),
+                       let raw = Data(base64Encoded: String(w[r.upperBound...]).trimmingCharacters(in: .whitespaces)),
+                       let json = String(data: raw, encoding: .utf8) {
+                        return ["name": name, "kind": "easykitchen", "text": json]
+                    }
+                }
+            }
+            var texts: [String] = []
+            for i in 0..<min(doc.pageCount, 30) {
+                guard let page = doc.page(at: i) else { continue }
+                let embedded = (page.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if embedded.count > 40 {
+                    texts.append(embedded)
+                } else if let cg = renderPage(page) {
+                    texts.append(ocr(cgImage: cg))
+                }
+            }
+            return ["name": name, "kind": "text", "text": texts.joined(separator: "\n")]
+        }
+        guard let img = NSImage(data: data),
+              let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return ["name": name, "error": "Dieses Bildformat wird nicht unterstützt."]
+        }
+        return ["name": name, "kind": "text", "text": ocr(cgImage: cg)]
+    }
+
+    /// Lädt das Vision-Modell vorab (der erste Aufruf dauert sonst 20–30 s).
+    func warmUpOCR() {
+        let size = NSSize(width: 240, height: 60)
+        let img = NSImage(size: size, flipped: false) { r in
+            NSColor.white.setFill(); r.fill()
+            ("Zutaten 200 g" as NSString).draw(at: NSPoint(x: 8, y: 18), withAttributes: [.font: NSFont.systemFont(ofSize: 22)])
+            return true
+        }
+        if let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) { _ = ocr(cgImage: cg) }
+    }
+
+    func renderPage(_ page: PDFPage) -> CGImage? {
+        let bounds = page.bounds(for: .mediaBox)
+        let scale: CGFloat = 2.5
+        let w = Int(bounds.width * scale), h = Int(bounds.height * scale)
+        guard w > 0, h > 0, let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                                 space: CGColorSpaceCreateDeviceRGB(),
+                                                 bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        ctx.setFillColor(NSColor.white.cgColor)
+        ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        ctx.scaleBy(x: scale, y: scale)
+        page.draw(with: .mediaBox, to: ctx)
+        return ctx.makeImage()
+    }
+
+    /// Erkennt Text und setzt ihn zeilenweise zusammen (Spalten wie „200 g | Mehl“ landen in einer Zeile).
+    func ocr(cgImage: CGImage) -> String {
+        let req = VNRecognizeTextRequest()
+        req.recognitionLevel = .accurate
+        req.usesLanguageCorrection = true
+        req.recognitionLanguages = ["de-DE", "en-US"]
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        do { try handler.perform([req]) } catch { return "" }
+        let obs = (req.results ?? []).compactMap { o -> (box: CGRect, text: String)? in
+            guard let t = o.topCandidates(1).first?.string, !t.isEmpty else { return nil }
+            return (o.boundingBox, t)
+        }
+        // nach Zeilen gruppieren (Vision: Ursprung unten links)
+        let sorted = obs.sorted { $0.box.midY > $1.box.midY }
+        var lines: [[(box: CGRect, text: String)]] = []
+        for o in sorted {
+            if let idx = lines.indices.last,
+               let ref = lines[idx].first,
+               abs(ref.box.midY - o.box.midY) < max(ref.box.height, o.box.height) * 0.55 {
+                lines[idx].append(o)
+            } else {
+                lines.append([o])
+            }
+        }
+        return lines.map { $0.sorted { $0.box.minX < $1.box.minX }.map { $0.text }.joined(separator: "  ") }
+            .joined(separator: "\n")
     }
 
     // MARK: In-App Updater (GitHub Releases + gh CLI + lokaler DMG-Fallback)

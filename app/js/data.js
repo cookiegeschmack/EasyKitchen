@@ -24,6 +24,12 @@ window.EasyKitchen = window.EasyKitchen || {};
     { id: 'pck',    label: 'Packung',        max: 5,    step: 0.5 },
     { id: 'zehe',   label: 'Zehe',           max: 10,   step: 1 },
     { id: 'tasse',  label: 'Tasse',          max: 5,    step: 0.25 },
+    { id: 'becher', label: 'Becher',         max: 5,    step: 0.5 },
+    { id: 'glas',   label: 'Glas',           max: 5,    step: 0.5 },
+    { id: 'scheibe',label: 'Scheibe',        max: 10,   step: 1 },
+    { id: 'zweig',  label: 'Zweig',          max: 10,   step: 1 },
+    { id: 'handvoll', label: 'Handvoll',     max: 5,    step: 0.5 },
+    { id: 'msp',    label: 'Msp.',           max: 5,    step: 1 },
     { id: 'ng',     label: 'nach Geschmack', max: 0,    step: 0 }
   ];
   const UNIT_BY_ID = Object.fromEntries(UNITS.map(u => [u.id, u]));
@@ -31,7 +37,9 @@ window.EasyKitchen = window.EasyKitchen || {};
   const EFFORT = { 1: 'Einfach', 2: 'Mittel', 3: 'Aufwendig' };
   const COST = { 1: 'Günstig', 2: 'Mittel', 3: 'Teuer' };
 
-  let state = { version: 1, recipes: [], updatedAt: 0 };
+  const SHARE_FORMAT = 'easykitchen-recipes';
+
+  let state = { version: 1, recipes: [], settings: {}, updatedAt: 0 };
   const listeners = [];
   let pendingNative = null;
   let nativeTimer = null;
@@ -55,6 +63,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     candidates.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     if (candidates[0]) state = candidates[0];
     state.recipes = state.recipes.map(normalizeRecipe);
+    if (!state.settings || typeof state.settings !== 'object') state.settings = {};
   }
 
   function persist() {
@@ -151,24 +160,60 @@ window.EasyKitchen = window.EasyKitchen || {};
     return r.watch;
   }
 
-  // ---------- Backup ----------
+  // ---------- Einstellungen ----------
+
+  function getSetting(key, def) {
+    return Object.prototype.hasOwnProperty.call(state.settings, key) ? state.settings[key] : def;
+  }
+  function setSetting(key, value) {
+    state.settings[key] = value;
+    persist();
+  }
+
+  // ---------- Backup & Teilen ----------
 
   function exportJSON() {
     return JSON.stringify({ app: 'EasyKitchen', exportedAt: new Date().toISOString(), ...state }, null, 2);
   }
 
-  /** Führt ein Backup zusammen: bekannte IDs werden aktualisiert, neue ergänzt. */
-  function importJSON(text) {
+  /** Teilbares Format (.easykitchen) – ohne persönliche Watchlist-Markierung. */
+  function exportShare(ids) {
+    const recipes = ids.map(getRecipe).filter(Boolean).map(r => {
+      const { watch, ...rest } = r;
+      return rest;
+    });
+    return JSON.stringify({ format: SHARE_FORMAT, version: 1, app: 'EasyKitchen', exportedAt: new Date().toISOString(), recipes });
+  }
+
+  /** Liest Rezepte aus einer .easykitchen-Datei, einem Backup oder eingebetteten PDF-Daten (ohne zu speichern). */
+  function parseShare(text) {
     const obj = parse(text);
-    if (!obj) throw new Error('Keine gültige EasyKitchen-Backup-Datei.');
+    if (!obj) return null;
+    return obj.recipes.map(normalizeRecipe).filter(r => r.title && r.ingredients.length);
+  }
+
+  /** Übernimmt Rezepte: bekannte IDs werden aktualisiert (Watchlist bleibt), neue ergänzt. */
+  function importRecipes(list) {
     let added = 0, updated = 0;
-    obj.recipes.map(normalizeRecipe).forEach(rec => {
+    list.map(normalizeRecipe).forEach(rec => {
       const idx = state.recipes.findIndex(r => r.id === rec.id);
-      if (idx >= 0) { state.recipes[idx] = rec; updated++; }
-      else { state.recipes.push(rec); added++; }
+      if (idx >= 0) {
+        rec.watch = state.recipes[idx].watch || rec.watch;
+        state.recipes[idx] = rec;
+        updated++;
+      } else {
+        state.recipes.unshift(rec);
+        added++;
+      }
     });
     persist();
     return { added, updated };
+  }
+
+  function importJSON(text) {
+    const list = parseShare(text);
+    if (!list) throw new Error('Keine gültige EasyKitchen-Datei.');
+    return importRecipes(list);
   }
 
   // ---------- Suche ----------
@@ -234,7 +279,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   ns.Data = {
     UNITS, UNIT_BY_ID, EFFORT, COST,
-    init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,
-    exportJSON, importJSON, parseTerms, matchRecipe, subscribe, hasNativeStorage, uid
+    SHARE_FORMAT, init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,
+    exportJSON, importJSON, exportShare, parseShare, importRecipes, getSetting, setSetting, parseTerms, matchRecipe, subscribe, hasNativeStorage, uid
   };
 })(window.EasyKitchen);

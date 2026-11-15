@@ -30,6 +30,60 @@
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>de.ducanhhoenemann.easykitchen.recipe</string>
+            <key>UTTypeDescription</key>
+            <string>EasyKitchen-Rezept</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.json</string>
+            </array>
+            <key>UTTypeIconFile</key>
+            <string>AppIcon.icns</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>easykitchen</string>
+                </array>
+                <key>public.mime-type</key>
+                <string>application/x-easykitchen</string>
+            </dict>
+        </dict>
+    </array>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>EasyKitchen-Rezept</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>AppIcon.icns</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>de.ducanhhoenemann.easykitchen.recipe</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Rezept aus Bild oder PDF</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.image</string>
+                <string>com.adobe.pdf</string>
+            </array>
+        </dict>
+    </array>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 EasyKitchen · Entwickelt von Duc Anh Hönemann. Alle Rechte vorbehalten.</string>
 </dict>

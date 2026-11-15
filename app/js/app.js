@@ -7,6 +7,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   const $ = UI.$, esc = UI.esc;
 
   const view = { tab: 'all', query: '', time: 0, effort: 0, cost: 0, sort: 'match' };
+  let visibleIds = [];
 
   // =========================================================================
   // Liste & Suche
@@ -94,6 +95,10 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('reset-filters').hidden = !filtersActive && !view.query;
 
     grid.innerHTML = list.map(x => cardHTML(x.r, x.m, terms)).join('');
+    visibleIds = list.map(x => x.r.id);
+    const exp = $('export-list-btn');
+    exp.hidden = !list.length;
+    exp.textContent = list.length === 1 ? 'Angezeigtes Rezept teilen / als PDF' : `Alle ${list.length} angezeigten teilen / als PDF`;
 
     // Ergebnis-Info
     const base = view.tab === 'watch' ? 'auf deiner Watchlist' : 'in deinen Rezepten';
@@ -182,6 +187,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       <div class="modal-foot spread">
         <button type="button" class="btn btn-danger-ghost" data-act="delete">Löschen</button>
         <div class="btn-row">
+          <button type="button" class="btn btn-secondary" data-act="share">⇪ Teilen</button>
           <button type="button" class="btn btn-secondary" data-act="watch">${r.watch ? '★ Auf der Watchlist' : '☆ Zur Watchlist'}</button>
           <button type="button" class="btn btn-primary" data-act="edit">Bearbeiten</button>
         </div>
@@ -311,20 +317,28 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('ed-time-range').value = Math.min(180, v);
   }
 
-  function openEditor(id) {
-    const r = id ? D.getRecipe(id) : null;
-    editor.id = r ? r.id : null;
-    $('editor-title').textContent = r ? 'Rezept bearbeiten' : 'Neues Rezept';
+  /**
+   * Öffnet den Editor. opts.draft füllt ein neues Rezept vor (z. B. aus dem Import),
+   * opts.source zeigt den erkannten Originaltext zum Vergleichen an.
+   */
+  function openEditor(id, opts) {
+    opts = opts || {};
+    const r = id ? D.getRecipe(id) : (opts.draft || null);
+    editor.id = id && r ? r.id : null;
+    $('editor-title').textContent = id ? 'Rezept bearbeiten' : (opts.draft ? 'Importiertes Rezept prüfen' : 'Neues Rezept');
+    $('editor-notice').hidden = !opts.source;
+    $('editor-source').textContent = opts.source || '';
+    if ($('editor-notice').querySelector('details')) $('editor-notice').querySelector('details').open = false;
     $('ed-title').value = r ? r.title : '';
     $('ed-title').classList.remove('invalid');
     $('ed-steps').value = r ? r.steps : '';
     $('ed-servings').value = r ? r.servings : 2;
-    $('ed-watch').checked = r ? r.watch : view.tab === 'watch';
+    $('ed-watch').checked = r ? !!r.watch : view.tab === 'watch';
     $('ing-error').hidden = true;
     setTime(r ? r.time : 30);
     setSegment('effort', r ? r.effort : 1);
     setSegment('cost', r ? r.cost : 1);
-    setPhoto(r ? r.image : '');
+    setPhoto(r ? (r.image || '') : '');
     $('ing-list').innerHTML = '';
     (r && r.ingredients.length ? r.ingredients : [null]).forEach(i => addIngredientRow(i));
     UI.closeModal('detail-modal');
@@ -462,6 +476,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (!b || !detailId) return;
       const act = b.dataset.act;
       if (act === 'edit') openEditor(detailId);
+      else if (act === 'share') ns.Share.openShareModal([detailId]);
       else if (act === 'watch') {
         const on = D.toggleWatch(detailId);
         UI.toast(on ? 'Zur Watchlist hinzugefügt ★' : 'Von der Watchlist entfernt');
@@ -478,8 +493,12 @@ window.EasyKitchen = window.EasyKitchen || {};
       }
     });
 
-    // Neues Rezept
+    // Neues Rezept, Import, Teilen
     $('new-recipe-btn').addEventListener('click', () => openEditor());
+    $('import-recipe-btn').addEventListener('click', () => ns.Importer.openImportModal());
+    $('export-list-btn').addEventListener('click', () => ns.Share.openShareModal(visibleIds));
+    $('whatsnew-btn').addEventListener('click', () => { UI.closeModal('settings-modal'); showWhatsNew(true); });
+    ns.Importer.wire();
 
     // Editor
     $('editor-form').addEventListener('submit', saveEditor);
@@ -549,16 +568,66 @@ window.EasyKitchen = window.EasyKitchen || {};
     });
   }
 
+  // =========================================================================
+  // „Was ist neu“ nach jedem Update
+  // =========================================================================
+
+  function cmpVer(a, b) {
+    const pa = String(a || '0').split('.').map(n => parseInt(n, 10) || 0);
+    const pb = String(b || '0').split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1;
+    }
+    return 0;
+  }
+
+  function showWhatsNew(manual) {
+    const cur = U.currentVersion();
+    const log = ns.CHANGELOG || [];
+    const last = D.getSetting('lastSeenVersion', null);
+    let entries;
+    if (manual) entries = log.slice(0, 3);
+    else if (last) entries = log.filter(e => cmpVer(e.version, last) > 0 && cmpVer(e.version, cur) <= 0);
+    else entries = log.filter(e => e.version === cur);
+    if (!manual && last !== cur) D.setSetting('lastSeenVersion', cur);
+    if (!entries.length) return;
+
+    const fmtDate = d => { const p = String(d || '').split('-'); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : ''; };
+    $('whatsnew-card').innerHTML = `
+      <div class="whatsnew-head">
+        <img src="img/icon-128.png" alt="">
+        <div>
+          <h2>Was ist neu${manual ? '' : ` in v${esc(entries[0].version)}`}?</h2>
+          <p class="muted">${manual ? 'Die letzten Neuerungen in EasyKitchen' : last ? 'EasyKitchen wurde aktualisiert – das ist dazugekommen:' : 'Willkommen! Das steckt in dieser Version:'}</p>
+        </div>
+      </div>
+      <div class="modal-body whatsnew-body">
+        ${entries.map(e => `
+          <section class="whatsnew-entry">
+            <div class="whatsnew-ver"><span class="version-chip">v${esc(e.version)}</span> <strong>${esc(e.title || '')}</strong> <span class="muted small">${esc(fmtDate(e.date))}</span></div>
+            <ul>${(e.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+          </section>`).join('')}
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-primary" data-close="whatsnew-modal" id="whatsnew-ok">Alles klar</button>
+      </div>`;
+    UI.openModal('whatsnew-modal');
+    $('whatsnew-ok').focus();
+  }
+
   function init() {
     D.init();
     wire();
     renderList();
     U.syncVersionLabels();
+    setTimeout(() => showWhatsNew(false), 400);
     setTimeout(() => U.check({ manual: false }), 1200);
   }
 
   ns.App = {
-    openEditor, openDetail, renderList, importBackupJSON, exportBackup,
+    openEditor, openDetail, renderList, importBackupJSON, exportBackup, showWhatsNew,
+    importFiles: payload => ns.Importer.handleFiles((payload && payload.files) || []),
+    onRecognizeResult: res => ns.Importer.onRecognizeResult(res),
     // Von der nativen Bridge (main.swift) aufgerufen:
     onUpdateCheckResult: res => U.onCheckResult(res),
     onUpdateProgress: p => U.onProgress(p),
