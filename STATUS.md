@@ -4,6 +4,16 @@
 > Build: `./build_mac_app.sh` · Release: `./publish_release.sh "Notizen"` · JS-Check: `node --check app/js/*.js`
 > Struktur und Updater übernommen von FinPilot (`cookiegeschmack/FinPilot`).
 
+## v1.3.0 – Branch `feature/wocheneinkaufsplaner`
+
+| # | Aufgabe | Datei(en) | Status |
+|---|---|---|---|
+| 1 | Wochenplan in der Datenschicht (`state.plan`: Rezepte + Portionen, abgehakte Einträge) | `data.js` | ✅ |
+| 2 | Einkaufsliste: Zusammenführen (Name normalisiert, Plural/Knoblauchzehe), Skalierung auf Portionen, g/kg & ml/l umgerechnet, Kategorien nach Supermarkt-Bereichen, Dose/Glas → Konserven | `planner.js` | ✅ |
+| 3 | Planer-Dialog (Rezepte, Portionen, Auswahl mit Suche; Liste zum Abhaken; Kopieren, Teilen, PDF, Neue Woche), 🛒 auf Karten und im Detail, Zähler oben | `index.html`, `app.js`, `planner.js` | ✅ |
+| 4 | Helles Pastell-Design (Farbvariablen, Pastelltöne für Karten/Kategorien/Diashow), Dunkelmodus unverändert, folgt System | `styles.css` | ✅ |
+| 5 | Getestet im Browser: hell/dunkel, schmal, Mengen-Summen, Abhaken, Speichern nach Neuladen | – | ✅ |
+
 ## v1.2.0 – Branch `feature/ui-favoriten-tagesrezepte`
 
 | # | Aufgabe | Datei(en) | Status |

@@ -29,7 +29,11 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (!el) return;
     el.hidden = false;
     requestAnimationFrame(() => el.classList.add('open'));
-    if (!openStack.includes(id)) openStack.push(id);
+    const i = openStack.indexOf(id);
+    if (i >= 0) openStack.splice(i, 1);
+    openStack.push(id);
+    // zuletzt geöffneter Dialog liegt immer oben (unabhängig von der HTML-Reihenfolge)
+    el.style.zIndex = String(100 + openStack.length);
     document.body.classList.add('modal-open');
   }
 

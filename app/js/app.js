@@ -46,7 +46,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function cardHTML(r, m, terms) {
     const img = r.image
       ? `<img src="${r.image}" alt="" loading="lazy">`
-      : `<div class="card-noimg">${esc((r.title || '?').trim().charAt(0).toUpperCase())}</div>`;
+      : `<div class="card-noimg tone-${ns.Planner.toneOf(r.id)}">${esc((r.title || '?').trim().charAt(0).toUpperCase())}</div>`;
 
     let ingLine;
     if (terms.length) {
@@ -74,6 +74,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       <article class="card" data-id="${esc(r.id)}" tabindex="0">
         <div class="card-img">
           ${img}
+          <button type="button" class="plan-toggle ${D.isPlanned(r.id) ? 'on' : ''}" data-plan="${esc(r.id)}"
+                  title="${D.isPlanned(r.id) ? 'Aus dem Wochenplan entfernen' : 'Zum Wochenplan hinzufügen'}" aria-label="Wochenplan umschalten"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M2.5 3h2l1.6 9.2a1.5 1.5 0 0 0 1.5 1.3h6.9a1.5 1.5 0 0 0 1.5-1.2L17.5 6.5H5.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="16.6" r="1.2" fill="currentColor"/><circle cx="14.2" cy="16.6" r="1.2" fill="currentColor"/></svg>${D.isPlanned(r.id) ? '<span class="plan-check">✓</span>' : ''}</button>
           <button type="button" class="watch-btn ${r.watch ? 'on' : ''}" data-watch="${esc(r.id)}"
                   title="${r.watch ? 'Favorit entfernen' : 'Als Favorit markieren'}" aria-label="Favorit umschalten">${r.watch ? '★' : '☆'}</button>
         </div>
@@ -88,6 +90,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function renderList() {
     const all = D.getRecipes();
     $('count-fav').textContent = all.filter(r => r.watch).length;
+    ns.Planner.renderBadge();
     renderDaily();
 
     const { list, terms } = filteredRecipes();
@@ -205,6 +208,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       <div class="modal-foot spread">
         <button type="button" class="btn btn-danger-ghost" data-act="delete">Löschen</button>
         <div class="btn-row">
+          <button type="button" class="btn btn-secondary ${D.isPlanned(r.id) ? 'is-planned' : ''}" data-act="plan">${D.isPlanned(r.id) ? '✓ Im Wochenplan' : '🛒 Zum Wochenplan'}</button>
           <button type="button" class="btn btn-secondary" data-act="share">⇪ Teilen</button>
           <button type="button" class="btn btn-secondary ${r.watch ? 'is-fav' : ''}" data-act="watch">${r.watch ? '★ Favorit' : '☆ Als Favorit'}</button>
           <button type="button" class="btn btn-primary" data-act="edit">Bearbeiten</button>
@@ -536,7 +540,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         ${multi ? '<button type="button" class="daily-skip" data-daily-next title="Nächstes Rezept">Nächstes ›</button>' : ''}
       </div>
       <button type="button" class="daily-slide" data-daily-open="${esc(r.id)}">
-        <span class="daily-thumb">${thumb}</span>
+        <span class="daily-thumb tone-${ns.Planner.toneOf(r.id)}">${thumb}</span>
         <span class="daily-text">
           <strong class="daily-name">${esc(r.title)}</strong>
           <span class="daily-meta">⏱ ${esc(UI.fmtTime(r.time))} · ${esc(D.EFFORT[r.effort])}${r.watch ? ' · ★ Favorit' : ''}</span>
@@ -634,6 +638,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 
     // Karten
     $('recipe-grid').addEventListener('click', e => {
+      const pl = e.target.closest('[data-plan]');
+      if (pl) {
+        e.stopPropagation();
+        const on = D.togglePlan(pl.dataset.plan);
+        UI.toast(on ? 'Zum Wochenplan hinzugefügt 🛒' : 'Aus dem Wochenplan entfernt');
+        renderList();
+        return;
+      }
       const w = e.target.closest('[data-watch]');
       if (w) {
         e.stopPropagation();
@@ -662,6 +674,13 @@ window.EasyKitchen = window.EasyKitchen || {};
       const act = b.dataset.act;
       if (act === 'edit') openEditor(detailId);
       else if (act === 'share') ns.Share.openShareModal([detailId]);
+      else if (act === 'plan') {
+        const on = D.togglePlan(detailId);
+        UI.toast(on ? 'Zum Wochenplan hinzugefügt 🛒' : 'Aus dem Wochenplan entfernt');
+        renderList();
+        ns.Planner.render();
+        openDetail(detailId);
+      }
       else if (act === 'watch') {
         const on = D.toggleWatch(detailId);
         UI.toast(on ? 'Als Favorit markiert ★' : 'Favorit entfernt');
@@ -684,6 +703,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('export-list-btn').addEventListener('click', () => ns.Share.openShareModal(visibleIds));
     $('whatsnew-btn').addEventListener('click', () => { UI.closeModal('settings-modal'); showWhatsNew(true); });
     ns.Importer.wire();
+    ns.Planner.wire();
 
     // Editor
     $('editor-form').addEventListener('submit', saveEditor);
@@ -699,7 +719,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     ['input', 'change', 'click'].forEach(ev => $('ing-list').addEventListener(ev, updateEditorNutrition));
     $('ed-servings').addEventListener('input', updateEditorNutrition);
     $('add-ing-btn').addEventListener('click', updateEditorNutrition);
-    document.querySelectorAll('.segmented').forEach(seg => seg.addEventListener('click', e => {
+    document.querySelectorAll('.segmented[data-seg]').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (b) setSegment(seg.dataset.seg, Number(b.dataset.value));
     }));
@@ -728,6 +748,12 @@ window.EasyKitchen = window.EasyKitchen || {};
 
     // Einstellungen & Backup
     $('settings-btn').addEventListener('click', () => UI.openModal('settings-modal'));
+    $('theme-seg').addEventListener('click', e => {
+      const b = e.target.closest('[data-theme-choice]');
+      if (!b) return;
+      D.setSetting('theme', b.dataset.themeChoice);
+      applyTheme(b.dataset.themeChoice);
+    });
     $('check-update-btn').addEventListener('click', () => U.check({ manual: true }));
     $('update-pill').addEventListener('click', () => U.openPillOrCheck());
     $('export-btn').addEventListener('click', exportBackup);
@@ -808,8 +834,26 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('whatsnew-ok').focus();
   }
 
+  // =========================================================================
+  // Darstellung: System / Hell / Dunkel
+  // =========================================================================
+
+  function applyTheme(choice) {
+    choice = ['light', 'dark'].includes(choice) ? choice : 'system';
+    if (choice === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', choice);
+    document.querySelectorAll('[data-theme-choice]').forEach(b => {
+      const on = b.dataset.themeChoice === choice;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', String(on));
+    });
+    const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSetAppearance;
+    if (h) h.postMessage(choice);
+  }
+
   function init() {
     D.init();
+    applyTheme(D.getSetting('theme', 'system'));
     wire();
     renderList();
     U.syncVersionLabels();
