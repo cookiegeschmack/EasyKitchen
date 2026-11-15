@@ -719,7 +719,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     ['input', 'change', 'click'].forEach(ev => $('ing-list').addEventListener(ev, updateEditorNutrition));
     $('ed-servings').addEventListener('input', updateEditorNutrition);
     $('add-ing-btn').addEventListener('click', updateEditorNutrition);
-    document.querySelectorAll('.segmented').forEach(seg => seg.addEventListener('click', e => {
+    document.querySelectorAll('.segmented[data-seg]').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (b) setSegment(seg.dataset.seg, Number(b.dataset.value));
     }));
@@ -748,6 +748,12 @@ window.EasyKitchen = window.EasyKitchen || {};
 
     // Einstellungen & Backup
     $('settings-btn').addEventListener('click', () => UI.openModal('settings-modal'));
+    $('theme-seg').addEventListener('click', e => {
+      const b = e.target.closest('[data-theme-choice]');
+      if (!b) return;
+      D.setSetting('theme', b.dataset.themeChoice);
+      applyTheme(b.dataset.themeChoice);
+    });
     $('check-update-btn').addEventListener('click', () => U.check({ manual: true }));
     $('update-pill').addEventListener('click', () => U.openPillOrCheck());
     $('export-btn').addEventListener('click', exportBackup);
@@ -828,8 +834,26 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('whatsnew-ok').focus();
   }
 
+  // =========================================================================
+  // Darstellung: System / Hell / Dunkel
+  // =========================================================================
+
+  function applyTheme(choice) {
+    choice = ['light', 'dark'].includes(choice) ? choice : 'system';
+    if (choice === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', choice);
+    document.querySelectorAll('[data-theme-choice]').forEach(b => {
+      const on = b.dataset.themeChoice === choice;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', String(on));
+    });
+    const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSetAppearance;
+    if (h) h.postMessage(choice);
+  }
+
   function init() {
     D.init();
+    applyTheme(D.getSetting('theme', 'system'));
     wire();
     renderList();
     U.syncVersionLabels();

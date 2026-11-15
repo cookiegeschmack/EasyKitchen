@@ -34,7 +34,8 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Nährwerte (Richtwerte)**: Kalorien, Eiweiß, Kohlenhydrate und Fett pro Portion werden offline aus den Zutaten geschätzt (`app/js/nutrition.js`, ~180 gängige Zutaten) – als Balkendiagramm unten am Rezept und live im Editor, in der PDF kurz ganz unten. Unbekannte Zutaten werden als „nicht berücksichtigt“ ausgewiesen.
 - **Filter**: Gesamtzeit (≤ 15 / 30 / 60 Min), Aufwand (einfach / mittel / aufwendig), Kosten (€ / €€ / €€€) und Sortierung.
 - **Wocheneinkaufsplaner** (🛒 oben): Rezepte für die Woche wählen, Portionen anpassen – daraus entsteht eine gemeinsame Einkaufsliste. Gleiche Zutaten werden zusammengefasst (g/kg, ml/l umgerechnet), nach Supermarkt-Bereichen sortiert und lassen sich abhaken, kopieren, teilen oder als PDF speichern.
-- **Design**: hell in Pastellfarben oder dunkel – folgt automatisch der Systemeinstellung.
+- **Design**: Grundfarbe Grün, hell in Pastellfarben oder dunkel – in den Einstellungen wählbar (System / Hell / Dunkel).
+- **Einkaufsliste teilen**: als Text (Menge zuerst) über das macOS-Teilen-Menü (WhatsApp, Nachrichten, AirDrop …), als Bild (PNG, Handy-Format) oder als PDF.
 - **Favoriten**: Rezepte mit ★ markieren und per „Nur Favoriten“ filtern (oder „Favoriten zuerst“ sortieren).
 - **Rezept(e) des Tages**: Diashow über der Liste mit täglich zufällig gewählten Lieblingsrezepten (10 s pro Rezept, Ladebalken, „Nächstes“). Unter 30 Rezepten 1, ab 30 zwei, ab 40 drei – unabhängig von Suche und Filtern.
 - **Version & Updates**: Die installierte Version steht oben neben dem Namen; ein verfügbares Update wird direkt daneben angezeigt.

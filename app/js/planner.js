@@ -169,7 +169,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           </span>
         </span>
         <button type="button" class="icon-btn" data-plan-remove="${esc(r.id)}" title="Aus dem Wochenplan entfernen" aria-label="Entfernen">✕</button>
-      </li>`).join('') : `<li class="plan-empty">Noch keine Rezepte geplant. Wähle unten Rezepte aus oder tippe bei einem Rezept auf <strong>🛒</strong>.</li>`;
+      </li>`).join('') : `<li class="plan-empty">Wähle oben die Rezepte für deine Woche aus (oder tippe bei einem Rezept auf <strong>🛒</strong>) – hier legst du dann die Portionen fest.</li>`;
     $('plan-summary').textContent = plan.length
       ? `${plan.length} ${plan.length === 1 ? 'Rezept' : 'Rezepte'} · ${plan.reduce((s, p) => s + p.servings, 0)} Portionen`
       : '';
@@ -231,19 +231,203 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   // ---------- Export ----------
 
+  /** Eine Zeile: Menge zuerst („2 Zehen Knoblauch“), ohne feste Menge „Salz (nach Bedarf)“. */
+  function itemLine(i) {
+    const amt = amountText(i);
+    if (!amt) return i.name;
+    if (amt === 'nach Bedarf') return `${i.name} (nach Bedarf)`;
+    return `${amt} ${i.name}`;
+  }
+
   function listText() {
     const plan = D.getPlan();
-    const lines = ['Einkaufsliste – EasyKitchen', ''];
-    lines.push('Rezepte: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(', '), '');
+    const lines = ['🛒 Einkaufsliste (EasyKitchen)', ''];
+    lines.push('Für: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(', '), '');
     grouped().forEach(g => {
-      lines.push(g.label.toUpperCase());
-      g.items.forEach(i => {
-        const amt = amountText(i);
-        lines.push(`${D.isChecked(i.key) ? '☑' : '☐'} ${i.name}${amt ? ' – ' + amt : ''}`);
-      });
+      lines.push(`${g.icon} ${g.label}`);
+      g.items.forEach(i => lines.push(`${D.isChecked(i.key) ? '☑' : '☐'} ${itemLine(i)}`));
       lines.push('');
     });
     return lines.join('\n').trim();
+  }
+
+  function shareText() {
+    const text = listText();
+    const h = native('nativeShareText');
+    if (h) { h.postMessage({ text }); return; }
+    if (navigator.share) { navigator.share({ title: 'Einkaufsliste', text }).catch(() => {}); return; }
+    copyList();
+  }
+
+  // ---------- Als Bild (PNG) ----------
+
+  const IMG_TONES = {
+    mint: ['#d8f3e6', '#2c8a5d'], rose: ['#fde1ea', '#b84470'], sky: ['#dcedfb', '#2f6fa8'],
+    butter: ['#fff2c6', '#9a7414'], peach: ['#ffe4da', '#c25a3f'], lavender: ['#ebe3fc', '#6a52b8']
+  };
+  const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif';
+
+  function wrapLines(ctx, text, maxW) {
+    const words = String(text).split(' ');
+    const lines = [];
+    let line = '';
+    words.forEach(w => {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+      else line = test;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function fitText(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    let t = text;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return t + '…';
+  }
+
+  /** Zeichnet die Einkaufsliste als hochformatiges Bild (1080 px breit) im hellen Pastell-Stil. */
+  function renderImage() {
+    const W = 1080, PAD = 64, ROW = 58, inner = W - PAD * 2;
+    const groups = grouped();
+    const plan = D.getPlan();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.font = `400 28px ${FONT}`;
+    const recipeLines = wrapLines(ctx, 'Für: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(' · '), inner);
+    const itemCount = groups.reduce((n, g) => n + g.items.length, 0);
+    const H = PAD + 40 + 76 + recipeLines.length * 38 + 30 + groups.length * (64 + 14) + itemCount * ROW + 70 + PAD;
+    canvas.width = W; canvas.height = H;
+
+    ctx.fillStyle = '#fbf8fc'; ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#dff3e7'); grad.addColorStop(.55, '#eee8fd'); grad.addColorStop(1, '#e2f1fc');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, 14);
+
+    let y = PAD;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#2c7a51'; ctx.font = `700 26px ${FONT}`;
+    ctx.fillText('EasyKitchen', PAD, y);
+    ctx.fillStyle = '#a59fb4'; ctx.font = `400 26px ${FONT}`; ctx.textAlign = 'right';
+    ctx.fillText(new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }), W - PAD, y);
+    ctx.textAlign = 'left';
+    y += 40;
+    ctx.fillStyle = '#2d2838'; ctx.font = `800 60px ${FONT}`;
+    ctx.fillText('Einkaufsliste', PAD, y);
+    y += 76;
+    ctx.fillStyle = '#6c6580'; ctx.font = `400 28px ${FONT}`;
+    recipeLines.forEach(l => { ctx.fillText(l, PAD, y); y += 38; });
+    y += 30;
+
+    groups.forEach(g => {
+      const [bg, fg] = IMG_TONES[g.tone] || IMG_TONES.sky;
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.roundRect(PAD, y, inner, 52, 14); ctx.fill();
+      ctx.fillStyle = fg; ctx.font = `700 28px ${FONT}`; ctx.textBaseline = 'middle';
+      ctx.fillText(`${g.icon}  ${g.label}`, PAD + 20, y + 27);
+      ctx.textAlign = 'right'; ctx.font = `600 24px ${FONT}`;
+      ctx.fillText(String(g.items.length), W - PAD - 20, y + 27);
+      ctx.textAlign = 'left';
+      y += 64;
+      g.items.forEach((i, idx) => {
+        const done = D.isChecked(i.key);
+        const cy = y + ROW / 2;
+        // Kästchen
+        ctx.lineWidth = 3; ctx.strokeStyle = done ? '#3f9468' : '#b9b2c6';
+        ctx.fillStyle = done ? '#3f9468' : '#ffffff';
+        ctx.beginPath(); ctx.roundRect(PAD + 8, cy - 15, 30, 30, 8); ctx.fill(); ctx.stroke();
+        if (done) {
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.beginPath();
+          ctx.moveTo(PAD + 15, cy); ctx.lineTo(PAD + 21, cy + 7); ctx.lineTo(PAD + 32, cy - 7); ctx.stroke();
+        }
+        // Menge zuerst, dann Zutat
+        const amt = amountText(i);
+        let x = PAD + 58;
+        if (amt && amt !== 'nach Bedarf') {
+          ctx.font = `700 30px ${FONT}`; ctx.fillStyle = done ? '#a59fb4' : '#2d2838';
+          ctx.fillText(amt, x, cy);
+          x += ctx.measureText(amt).width + 14;
+        }
+        ctx.font = `400 30px ${FONT}`; ctx.fillStyle = done ? '#a59fb4' : '#2d2838';
+        const name = amt === 'nach Bedarf' ? `${i.name} (nach Bedarf)` : i.name;
+        const shown = fitText(ctx, name, W - PAD - x);
+        ctx.fillText(shown, x, cy);
+        if (done) {
+          ctx.strokeStyle = '#a59fb4'; ctx.lineWidth = 2; ctx.beginPath();
+          ctx.moveTo(PAD + 58, cy + 1); ctx.lineTo(x + ctx.measureText(shown).width, cy + 1); ctx.stroke();
+        }
+        if (idx < g.items.length - 1) {
+          ctx.fillStyle = '#efe9f4'; ctx.fillRect(PAD + 58, y + ROW - 1, inner - 58, 2);
+        }
+        y += ROW;
+      });
+      ctx.textBaseline = 'top';
+      y += 14;
+    });
+
+    y += 26;
+    ctx.fillStyle = '#a59fb4'; ctx.font = `400 22px ${FONT}`; ctx.textAlign = 'center';
+    ctx.fillText('Erstellt mit EasyKitchen', W / 2, y);
+    ctx.textAlign = 'left';
+    return canvas.toDataURL('image/png');
+  }
+
+  function exportImage(action) {
+    const dataUrl = renderImage();
+    const base64 = dataUrl.split(',')[1];
+    const filename = 'Einkaufsliste.png';
+    const h = native('nativeShareImage');
+    if (h) { h.postMessage({ base64, filename, action }); return; }
+    if (action === 'share' && navigator.canShare) {
+      const bin = atob(base64); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const file = new File([bytes], filename, { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) { navigator.share({ files: [file], title: 'Einkaufsliste' }).catch(() => {}); return; }
+    }
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    UI.toast('Bild gespeichert ✓');
+  }
+
+  // ---------- Export-Dialog ----------
+
+  function openExportModal() {
+    const isNative = !!native('nativeShareText');
+    const canShare = isNative || !!navigator.share;
+    const opt = (icon, title, text, buttons) => `
+      <div class="share-option">
+        <div class="share-icon">${icon}</div>
+        <div class="share-text"><strong>${title}</strong><span>${text}</span></div>
+        <div class="share-actions">${buttons}</div>
+      </div>`;
+    $('share-card').innerHTML = `
+      <div class="modal-head">
+        <h2>Einkaufsliste teilen</h2>
+        <button type="button" class="icon-btn" data-close="share-modal" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        ${opt('💬', 'Als Text', 'Für WhatsApp, Nachrichten, Notizen, AirDrop & Co. – Menge zuerst, nach Bereichen sortiert.',
+          `${canShare ? '<button type="button" class="btn btn-primary" data-exp="text-share">Teilen…</button>' : ''}
+           <button type="button" class="btn btn-secondary" data-exp="text-copy">Kopieren</button>`)}
+        ${opt('🖼', 'Als Bild', 'Übersichtliches Bild im Handy-Format – praktisch zum Weiterschicken oder für den Sperrbildschirm.',
+          `<button type="button" class="btn ${canShare ? 'btn-secondary' : 'btn-primary'}" data-exp="img-share">Teilen…</button>
+           <button type="button" class="btn btn-secondary" data-exp="img-save">Speichern</button>`)}
+        ${opt('📄', 'Als PDF', 'Zum Ausdrucken, mit Kästchen zum Abhaken.',
+          `${isNative ? '<button type="button" class="btn btn-secondary" data-exp="pdf-share">Teilen…</button>' : ''}
+           <button type="button" class="btn btn-secondary" data-exp="pdf-save">${isNative ? 'Speichern' : 'PDF erstellen'}</button>`)}
+      </div>`;
+    $('share-card').querySelectorAll('[data-exp]').forEach(b => b.addEventListener('click', () => {
+      const a = b.dataset.exp;
+      if (a === 'text-share') shareText();
+      else if (a === 'text-copy') copyList();
+      else if (a === 'img-share') exportImage('share');
+      else if (a === 'img-save') exportImage('save');
+      else if (a === 'pdf-share') exportPDF('share');
+      else if (a === 'pdf-save') exportPDF('save');
+    }));
+    UI.openModal('share-modal');
   }
 
   function copyList() {
@@ -267,18 +451,18 @@ window.EasyKitchen = window.EasyKitchen || {};
       @page { size: A4; margin: 0; }
       body { margin: 0; font: 11pt/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #2d2838; }
       .page { padding: 40px 50px 20px; }
-      .brand { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ec7a62; padding-bottom: 10px; margin-bottom: 18px; font-weight: 700; }
+      .brand { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3f9468; padding-bottom: 10px; margin-bottom: 18px; font-weight: 700; }
       .brand img { width: 20px; height: 20px; vertical-align: -4px; margin-right: 6px; }
       .brand span { font-weight: 400; font-size: 9pt; color: #a59fb3; }
       h1 { font-size: 20pt; margin: 0 0 6px; }
       .recipes { color: #6f6880; font-size: 10pt; margin-bottom: 18px; }
       .cols { columns: 2; column-gap: 34px; }
       section { break-inside: avoid; margin-bottom: 14px; }
-      h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: .05em; color: #c4553d; margin: 0 0 6px; }
+      h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: .05em; color: #2c7a51; margin: 0 0 6px; }
       ul { list-style: none; margin: 0; padding: 0; }
       li { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid #efe9f4; }
       .box { width: 11px; height: 11px; border: 1.5px solid #a59fb3; border-radius: 3px; margin-top: 4px; flex-shrink: 0; }
-      .amt { margin-left: auto; color: #6f6880; white-space: nowrap; padding-left: 8px; }
+      .amt { min-width: 92px; font-weight: 600; white-space: nowrap; }
       li.done { color: #a59fb3; text-decoration: line-through; }
     </style></head><body><div class="page">
       <div class="brand"><div><img src="img/icon-128.png" alt="">EasyKitchen</div><span>Einkaufsliste · ${esc(date)}</span></div>
@@ -286,7 +470,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       <div class="recipes">${plan.map(p => `${esc(p.recipe.title)} (${p.servings} P.)`).join(' · ')}</div>
       <div class="cols">
         ${grouped().map(g => `<section><h2>${esc(g.label)}</h2><ul>${g.items.map(i => `
-          <li class="${D.isChecked(i.key) ? 'done' : ''}"><span class="box"></span><span>${esc(i.name)}</span><span class="amt">${esc(amountText(i))}</span></li>`).join('')}</ul></section>`).join('')}
+          <li class="${D.isChecked(i.key) ? 'done' : ''}"><span class="box"></span><span class="amt">${esc(amountText(i))}</span><span>${esc(i.name)}</span></li>`).join('')}</ul></section>`).join('')}
       </div>
     </div></body></html>`;
   }
@@ -332,8 +516,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (act) {
         const a = act.dataset.shopAct;
         if (a === 'copy') copyList();
-        else if (a === 'pdf') exportPDF('save');
-        else if (a === 'share') exportPDF('share');
+        else if (a === 'export') openExportModal();
         else if (a === 'uncheck') { D.clearChecked(); render(); }
         else if (a === 'new-week' && confirm('Neue Woche starten? Alle geplanten Rezepte und Häkchen werden entfernt.')) {
           D.clearPlan(); render(); ns.App.renderList();
@@ -346,12 +529,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       const chk = e.target.closest('[data-shop-key]');
       if (chk) { D.toggleChecked(chk.dataset.shopKey); render(); }
     });
-    if (!native('nativeShareFile')) {
-      const s = $('plan-modal').querySelector('[data-shop-act="share"]');
-      if (s) s.hidden = true;
-    }
     renderBadge();
   }
 
-  ns.Planner = { open, render, renderBadge, wire, buildList, amountText, categorize, ingredientKey, toneOf, listText };
+  ns.Planner = { open, render, renderBadge, wire, buildList, amountText, categorize, ingredientKey, toneOf, listText, renderImage, openExportModal };
 })(window.EasyKitchen);

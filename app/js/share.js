@@ -24,7 +24,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     }
     .recipe { padding: 44px 52px 16px; }
     .recipe + .recipe { page-break-before: always; break-before: page; }
-    .brand { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 22px; border-bottom: 2px solid #e2583e; }
+    .brand { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; margin-bottom: 22px; border-bottom: 2px solid #3f9468; }
     .brand-left { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12pt; }
     .brand-left img { width: 22px; height: 22px; }
     .brand-right { font-size: 8.5pt; color: #a29a8f; }
@@ -35,14 +35,14 @@ window.EasyKitchen = window.EasyKitchen || {};
     .meta span { font-size: 9.5pt; color: #6e675e; background: #f3f0eb; padding: 3px 10px; border-radius: 6px; }
     .meta .dim { opacity: .3; background: none; padding: 0; }
     .cols { display: grid; grid-template-columns: 38% 1fr; gap: 30px; }
-    h2 { font-size: 12.5pt; margin: 0 0 10px; color: #e2583e; text-transform: uppercase; letter-spacing: .05em; }
+    h2 { font-size: 12.5pt; margin: 0 0 10px; color: #3f9468; text-transform: uppercase; letter-spacing: .05em; }
     ul.ing { list-style: none; margin: 0; padding: 0; }
     ul.ing li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid #ece7df; break-inside: avoid; }
     ul.ing li:last-child { border-bottom: 0; }
     .amt { width: 112px; flex-shrink: 0; white-space: nowrap; color: #6e675e; font-variant-numeric: tabular-nums; }
     ol.steps { margin: 0; padding-left: 20px; }
     ol.steps li { padding: 0 0 9px 4px; break-inside: avoid; }
-    ol.steps li::marker { color: #e2583e; font-weight: 700; }
+    ol.steps li::marker { color: #3f9468; font-weight: 700; }
     .muted { color: #a29a8f; }
     table.times { width: 100%; border-collapse: collapse; margin: 4px 0 14px; border-top: 1px solid #ece7df; border-bottom: 1px solid #ece7df; }
     table.times td { width: 33.33%; text-align: center; padding: 9px 6px; }

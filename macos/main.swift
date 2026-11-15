@@ -94,7 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let controller = WKUserContentController()
         for name in ["nativeStorage", "nativeExport", "nativeImport", "nativeCheckUpdate",
                      "nativePerformUpdate", "nativeInstallLocalDMG", "nativeOpenURL",
-                     "nativeExportPDF", "nativeShareFile", "nativeRecognize"] {
+                     "nativeExportPDF", "nativeShareFile", "nativeRecognize",
+                     "nativeShareText", "nativeShareImage", "nativeSetAppearance"] {
             controller.add(self, name: name)
         }
         updateBootstrapScript(on: controller, with: nil)
@@ -198,9 +199,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let url = tempFileURL(filename)
             do {
                 try content.write(to: url, atomically: true, encoding: .utf8)
-                share(urls: [url])
+                share(items: [url])
             } catch {
                 showAlert("Datei konnte nicht vorbereitet werden: \(error.localizedDescription)")
+            }
+        case "nativeShareText":
+            if let text = (message.body as? [String: Any])?["text"] as? String { share(items: [text]) }
+        case "nativeShareImage":
+            guard let dict = message.body as? [String: Any],
+                  let b64 = dict["base64"] as? String,
+                  let data = Data(base64Encoded: b64) else { return }
+            let filename = (dict["filename"] as? String) ?? "Einkaufsliste.png"
+            if (dict["action"] as? String) == "share" {
+                let url = tempFileURL(filename)
+                do { try data.write(to: url); share(items: [url]) }
+                catch { showAlert("Bild konnte nicht vorbereitet werden: \(error.localizedDescription)") }
+            } else {
+                let panel = NSSavePanel()
+                panel.nameFieldStringValue = filename
+                panel.allowedContentTypes = [.png]
+                panel.beginSheetModal(for: window) { [weak self] resp in
+                    guard let self = self, resp == .OK, let url = panel.url else { return }
+                    do { try data.write(to: url); self.toast("Bild gespeichert ✓"); NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                    catch { self.showAlert("Bild konnte nicht gespeichert werden: \(error.localizedDescription)") }
+                }
+            }
+        case "nativeSetAppearance":
+            // „light“ / „dark“ erzwingen, sonst Systemeinstellung (auch für Dialoge & Teilen-Menü)
+            switch message.body as? String {
+            case "light": NSApp.appearance = NSAppearance(named: .aqua)
+            case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+            default: NSApp.appearance = nil
             }
         case "nativeRecognize":
             recognize(dict: (message.body as? [String: Any]) ?? [:])
@@ -309,10 +338,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     }
 
     /// macOS-Teilen-Menü (AirDrop, Nachrichten, Mail, …) unter dem Mauszeiger öffnen.
-    func share(urls: [URL]) {
+    func share(items: [Any]) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let view = self.webView, let win = self.window else { return }
-            let picker = NSSharingServicePicker(items: urls)
+            let picker = NSSharingServicePicker(items: items)
             var p = view.convert(win.mouseLocationOutsideOfEventStream, from: nil)
             if !view.bounds.contains(p) { p = NSPoint(x: view.bounds.midX, y: view.bounds.midY) }
             picker.show(relativeTo: NSRect(x: p.x - 1, y: p.y - 1, width: 2, height: 2), of: view, preferredEdge: .minY)
@@ -460,7 +489,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             return
         }
         if job.share {
-            share(urls: [job.target])
+            share(items: [job.target])
         } else {
             toast("PDF gespeichert ✓")
             NSWorkspace.shared.activateFileViewerSelecting([job.target])

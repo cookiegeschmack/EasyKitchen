@@ -237,6 +237,15 @@
       </div>
       <div class="modal-body">
         <section class="settings-section">
+          <h3>Darstellung</h3>
+          <p class="muted">Hell (Pastell), Dunkel oder automatisch wie in den Systemeinstellungen.</p>
+          <div class="segmented theme-seg" id="theme-seg" role="radiogroup" aria-label="Darstellung">
+            <button type="button" data-theme-choice="system" role="radio">🖥 System</button>
+            <button type="button" data-theme-choice="light" role="radio">☀︎ Hell</button>
+            <button type="button" data-theme-choice="dark" role="radio">☾ Dunkel</button>
+          </div>
+        </section>
+        <section class="settings-section">
           <h3>Updates</h3>
           <p class="muted"><span class="version-chip" id="settings-version">v1.0.0</span> <span id="settings-update-status">Automatische Update-Prüfung beim Start aktiv.</span></p>
           <button type="button" class="btn btn-secondary" id="check-update-btn">Nach Updates suchen</button>
@@ -314,23 +323,24 @@
       </div>
       <div class="modal-body plan-body">
         <section class="plan-col">
-          <h3>Rezepte dieser Woche</h3>
-          <ul class="plan-recipes" id="plan-recipes"></ul>
-          <div class="plan-picker">
-            <h4>Rezepte auswählen</h4>
+          <div class="plan-step">
+            <h3><span class="step-num">1</span>Rezepte auswählen</h3>
             <input type="search" class="input" id="plan-picker-search" placeholder="Rezept oder Zutat suchen …" autocomplete="off">
             <ul class="plan-picker-list" id="plan-picker-list"></ul>
+          </div>
+          <div class="plan-step">
+            <h3><span class="step-num">2</span>Portionen anpassen</h3>
+            <ul class="plan-recipes" id="plan-recipes"></ul>
           </div>
         </section>
         <section class="plan-col shop-col">
           <div class="shop-head">
-            <h3>Einkaufsliste</h3>
+            <h3><span class="step-num">3</span>Einkaufsliste</h3>
             <span class="muted small" id="shop-progress"></span>
           </div>
           <div class="shop-actions" id="shop-actions" hidden>
             <button type="button" class="btn btn-secondary btn-sm" data-shop-act="copy">Kopieren</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-shop-act="share">Teilen…</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-shop-act="pdf">Als PDF</button>
+            <button type="button" class="btn btn-primary btn-sm" data-shop-act="export">⇪ Teilen / Exportieren…</button>
             <button type="button" class="link-btn" data-shop-act="uncheck">Häkchen zurücksetzen</button>
           </div>
           <div class="shop-list" id="shop-list"></div>
