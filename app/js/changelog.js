@@ -7,6 +7,16 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.3.0',
+    date: '2026-11-15',
+    title: 'Wocheneinkaufsplaner & Pastell-Design',
+    items: [
+      '🛒 Wocheneinkaufsplaner: Rezepte für die Woche auswählen (🛒 auf der Rezeptkarte, in der Detailansicht oder direkt im Planer) und Portionen anpassen.',
+      '📝 Daraus entsteht automatisch eine Einkaufsliste: gleiche Zutaten werden zusammengefasst und auf deine Portionen umgerechnet, sortiert nach Supermarkt-Bereichen – zum Abhaken, Kopieren, Teilen oder als PDF.',
+      '🎨 Neues helles Design in sanften Pastellfarben. EasyKitchen folgt automatisch deiner Systemeinstellung (hell/dunkel).'
+    ]
+  },
+  {
     version: '1.2.0',
     date: '2026-11-15',
     title: 'Rezepte des Tages, Favoriten & Nährwerte',

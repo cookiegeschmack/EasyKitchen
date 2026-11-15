@@ -39,7 +39,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   const SHARE_FORMAT = 'easykitchen-recipes';
 
-  let state = { version: 1, recipes: [], settings: {}, updatedAt: 0 };
+  let state = { version: 1, recipes: [], settings: {}, plan: { items: [], checked: [] }, updatedAt: 0 };
   const listeners = [];
   let pendingNative = null;
   let nativeTimer = null;
@@ -64,6 +64,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     else if (localState) state = localState;
     state.recipes = state.recipes.map(normalizeRecipe);
     if (!state.settings || typeof state.settings !== 'object') state.settings = {};
+    state.plan = normalizePlan(state.plan);
   }
 
   function persist() {
@@ -281,10 +282,53 @@ window.EasyKitchen = window.EasyKitchen || {};
     return { score, matchedTerms, matchedIngredients };
   }
 
+  // ---------- Wocheneinkaufsplaner ----------
+
+  function normalizePlan(p) {
+    p = p && typeof p === 'object' ? p : {};
+    return {
+      items: (Array.isArray(p.items) ? p.items : [])
+        .filter(i => i && i.id)
+        .map(i => ({ id: String(i.id), servings: clampInt(i.servings, 1, 50, 2) })),
+      checked: Array.isArray(p.checked) ? p.checked.map(String) : []
+    };
+  }
+
+  /** Geplante Rezepte (gelöschte Rezepte fallen automatisch heraus). */
+  function getPlan() {
+    return state.plan.items
+      .map(i => ({ ...i, recipe: getRecipe(i.id) }))
+      .filter(i => i.recipe);
+  }
+  function isPlanned(id) { return state.plan.items.some(i => i.id === id); }
+  function togglePlan(id) {
+    const r = getRecipe(id);
+    if (!r) return false;
+    if (isPlanned(id)) state.plan.items = state.plan.items.filter(i => i.id !== id);
+    else state.plan.items.push({ id, servings: r.servings });
+    persist();
+    return isPlanned(id);
+  }
+  function setPlanServings(id, servings) {
+    const it = state.plan.items.find(i => i.id === id);
+    if (!it) return;
+    it.servings = clampInt(servings, 1, 50, it.servings);
+    persist();
+  }
+  function clearPlan() { state.plan = { items: [], checked: [] }; persist(); }
+  function isChecked(key) { return state.plan.checked.includes(key); }
+  function toggleChecked(key) {
+    if (isChecked(key)) state.plan.checked = state.plan.checked.filter(k => k !== key);
+    else state.plan.checked.push(key);
+    persist();
+  }
+  function clearChecked() { state.plan.checked = []; persist(); }
+
   function subscribe(fn) { listeners.push(fn); }
 
   ns.Data = {
-    norm,
+    norm, stem,
+    getPlan, isPlanned, togglePlan, setPlanServings, clearPlan, isChecked, toggleChecked, clearChecked,
     UNITS, UNIT_BY_ID, EFFORT, COST,
     SHARE_FORMAT, init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,
     exportJSON, importJSON, exportShare, parseShare, importRecipes, getSetting, setSetting, parseTerms, matchRecipe, subscribe, hasNativeStorage, uid
