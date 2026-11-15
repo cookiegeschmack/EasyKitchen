@@ -7,6 +7,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.3.3',
+    date: '2026-11-16',
+    title: 'Test-Update',
+    items: [
+      '🧪 Dies ist ein Test-Update ohne neue Funktionen – es prüft, ob die automatische Aktualisierung bei dir funktioniert. Deine Rezepte bleiben unverändert erhalten.'
+    ]
+  },
+  {
     version: '1.3.2',
     date: '2026-11-15',
     title: 'Läuft jetzt auf mehr Macs',
