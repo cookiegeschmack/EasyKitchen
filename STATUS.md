@@ -4,6 +4,17 @@
 > Build: `./build_mac_app.sh` · Release: `./publish_release.sh "Notizen"` · JS-Check: `node --check app/js/*.js`
 > Struktur und Updater übernommen von FinPilot (`cookiegeschmack/FinPilot`).
 
+## v1.2.0 (2026-11-15) – Zeiten-Tabelle, Nährwerte & Fehlerbehebungen
+
+| # | Aufgabe | Datei(en) | Status |
+|---|---|---|---|
+| 1 | Zeiten: `prepTime` + `cookTime`, `time` = Summe; Migration alter Rezepte (time → Zubereitung); Tabelle in Detail & PDF; Import liest Arbeits-/Koch-/Gesamtzeit getrennt | `data.js`, `app.js`, `share.js`, `importer.js` | ✅ |
+| 2 | Nährwert-Schätzung offline (kcal/Eiweiß/KH/Fett je 100 g + Stück-/Löffelgewichte), Balken pro Portion vs. Tagesbedarf, live im Editor; PDF-Kurztabelle | `nutrition.js`, `app.js`, `share.js` | ✅ |
+| 3 | Fix: Absturz nach PDF-Export (printDone auf Hintergrund-Thread → jetzt Haupt-Thread) | `macos/main.swift` | ✅ |
+| 4 | Fix: In der Mac-App ist `state.json` maßgeblich – eine ältere WebView-localStorage-Kopie konnte sie überschreiben | `data.js` | ✅ |
+| 5 | PDF: leere Schlussseiten werden entfernt, Plural-Einheiten (6 Scheiben, 2 Dosen) | `main.swift`, `share.js`, `data.js`, `ui.js` | ✅ |
+| 6 | Getestet: Nährwerte gegen Referenz (Rinderroulade 779 vs. 822 kcal), Browser (Migration, Live-Balken, Detail), PDF-Erzeugung | – | ✅ |
+
 ## v1.1.0 (2026-11-15) – Teilen, PDF & Import
 
 | # | Aufgabe | Datei(en) | Status |

@@ -140,6 +140,12 @@ window.EasyKitchen = window.EasyKitchen || {};
     renderList();
   }
 
+  /** Zeiten-Tabelle: Vorbereitung | Zubereitung | Gesamt */
+  function timeTableHTML(r) {
+    const cell = (label, v) => `<div><span>${label}</span><strong>${v ? esc(UI.fmtTime(v)) : '–'}</strong></div>`;
+    return `<div class="time-table">${cell('Vorbereitung', r.prepTime)}${cell('Zubereitung', r.cookTime)}${cell('Gesamtzeit', r.time)}</div>`;
+  }
+
   // =========================================================================
   // Detailansicht
   // =========================================================================
@@ -161,8 +167,10 @@ window.EasyKitchen = window.EasyKitchen || {};
         <button type="button" class="icon-btn" data-close="detail-modal" aria-label="Schließen">✕</button>
       </div>
       <div class="modal-body">
+        ${timeTableHTML(r)}
         <div class="card-meta detail-meta">
-          ${metaChips(r)}
+          <span class="meta">${esc(D.EFFORT[r.effort])}</span>
+          <span class="meta">${'€'.repeat(r.cost)}<span class="meta-dim">${'€'.repeat(3 - r.cost)}</span></span>
           <span class="meta">${r.servings} ${r.servings === 1 ? 'Portion' : 'Portionen'}</span>
         </div>
         <div class="detail-cols">
@@ -183,6 +191,10 @@ window.EasyKitchen = window.EasyKitchen || {};
               : '<p class="muted">Keine Zubereitung hinterlegt.</p>'}
           </section>
         </div>
+        <section class="nutri-section">
+          <h3>Nährwerte <span class="muted">· Richtwerte pro Portion</span></h3>
+          ${ns.Nutrition.renderBars(r)}
+        </section>
       </div>
       <div class="modal-foot spread">
         <button type="button" class="btn btn-danger-ghost" data-act="delete">Löschen</button>
@@ -311,10 +323,29 @@ window.EasyKitchen = window.EasyKitchen || {};
     }
   }
 
-  function setTime(v) {
-    v = Math.max(0, Math.min(1440, Math.round(Number(v) || 0)));
-    $('ed-time').value = v;
-    $('ed-time-range').value = Math.min(180, v);
+  function setTimes(prep, cook) {
+    const clamp = v => Math.max(0, Math.min(1440, Math.round(Number(v) || 0)));
+    $('ed-prep').value = clamp(prep);
+    $('ed-prep-range').value = Math.min(120, clamp(prep));
+    $('ed-cook').value = clamp(cook);
+    $('ed-cook-range').value = Math.min(180, clamp(cook));
+    updateTotal();
+  }
+
+  function updateTotal() {
+    const t = (Number($('ed-prep').value) || 0) + (Number($('ed-cook').value) || 0);
+    $('ed-total').textContent = t ? UI.fmtTime(t) : '–';
+  }
+
+  let nutriTimer = null;
+  function updateEditorNutrition() {
+    clearTimeout(nutriTimer);
+    nutriTimer = setTimeout(() => {
+      $('ed-nutrition').innerHTML = ns.Nutrition.renderBars({
+        ingredients: readIngredients(),
+        servings: Number($('ed-servings').value) || 1
+      });
+    }, 120);
   }
 
   /**
@@ -335,12 +366,14 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('ed-servings').value = r ? r.servings : 2;
     $('ed-watch').checked = r ? !!r.watch : view.tab === 'watch';
     $('ing-error').hidden = true;
-    setTime(r ? r.time : 30);
+    if (r) setTimes(r.prepTime != null ? r.prepTime : 0, r.cookTime != null ? r.cookTime : r.time);
+    else setTimes(0, 30);
     setSegment('effort', r ? r.effort : 1);
     setSegment('cost', r ? r.cost : 1);
     setPhoto(r ? (r.image || '') : '');
     $('ing-list').innerHTML = '';
     (r && r.ingredients.length ? r.ingredients : [null]).forEach(i => addIngredientRow(i));
+    updateEditorNutrition();
     UI.closeModal('detail-modal');
     UI.openModal('editor-modal');
     $('ed-title').focus();
@@ -366,7 +399,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       id: editor.id || undefined,
       title,
       image: editor.image,
-      time: Number($('ed-time').value) || 0,
+      prepTime: Number($('ed-prep').value) || 0,
+      cookTime: Number($('ed-cook').value) || 0,
       effort: editor.effort,
       cost: editor.cost,
       servings: Number($('ed-servings').value) || 1,
@@ -503,10 +537,17 @@ window.EasyKitchen = window.EasyKitchen || {};
     // Editor
     $('editor-form').addEventListener('submit', saveEditor);
     $('add-ing-btn').addEventListener('click', () => addIngredientRow(null, true));
-    $('ed-time-range').addEventListener('input', e => { $('ed-time').value = e.target.value; });
-    $('ed-time').addEventListener('input', e => {
-      $('ed-time-range').value = Math.min(180, Number(e.target.value) || 0);
+    [['ed-prep', 120], ['ed-cook', 180]].forEach(([id, max]) => {
+      $(id + '-range').addEventListener('input', e => { $(id).value = e.target.value; updateTotal(); });
+      $(id).addEventListener('input', e => {
+        $(id + '-range').value = Math.min(max, Number(e.target.value) || 0);
+        updateTotal();
+      });
     });
+    // Nährwerte live neu berechnen, sobald sich Zutaten oder Portionen ändern
+    ['input', 'change', 'click'].forEach(ev => $('ing-list').addEventListener(ev, updateEditorNutrition));
+    $('ed-servings').addEventListener('input', updateEditorNutrition);
+    $('add-ing-btn').addEventListener('click', updateEditorNutrition);
     document.querySelectorAll('.segmented').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (b) setSegment(seg.dataset.seg, Number(b.dataset.value));
@@ -514,6 +555,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     document.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
       const inp = $('ed-servings');
       inp.value = Math.max(1, Math.min(50, (Number(inp.value) || 1) + Number(b.dataset.serv)));
+      updateEditorNutrition();
     }));
 
     // Foto

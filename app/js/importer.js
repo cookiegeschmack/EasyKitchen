@@ -228,10 +228,12 @@ window.EasyKitchen = window.EasyKitchen || {};
     const work = findLabeled(/arbeitszeit|vorbereitung|zubereitungszeit|prep/i);
     const cook = findLabeled(/kochzeit|backzeit|garzeit|cook|bake/i);
     const rest = findLabeled(/ruhezeit/i);
-    draft.time = total || (work + cook + rest) || 0;
-    if (!draft.time) {
+    draft.prepTime = work;
+    draft.cookTime = cook + rest;
+    if (!draft.cookTime && total) draft.cookTime = Math.max(0, total - work);
+    if (!draft.prepTime && !draft.cookTime) {
       const firstDur = head.map(parseDuration).find(Boolean);
-      if (firstDur) draft.time = firstDur;
+      if (firstDur) draft.cookTime = firstDur;
     }
 
     const all = metaLines.join('\n');
@@ -277,7 +279,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     draft.steps = out.join('\n');
 
     if (!draft.servings) draft.servings = 2;
-    if (!draft.time) draft.time = 30;
+    if (!draft.prepTime && !draft.cookTime) draft.cookTime = 30;
     return draft;
   }
 
@@ -415,7 +417,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           ${recipes.map(r => `
             <li>
               ${r.image ? `<img src="${r.image}" alt="">` : `<div class="import-noimg">${esc(r.title.charAt(0).toUpperCase())}</div>`}
-              <div><strong>${esc(r.title)}</strong><span class="muted">${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))}${D.getRecipe(r.id) ? ' · wird aktualisiert' : ''}</span></div>
+              <div><strong>${esc(r.title)}</strong><span class="muted">${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt${D.getRecipe(r.id) ? ' · wird aktualisiert' : ''}</span></div>
             </li>`).join('')}
         </ul>
         ${existing ? `<p class="muted small">${existing === 1 ? 'Ein Rezept ist' : `${existing} Rezepte sind`} schon vorhanden und ${existing === 1 ? 'wird' : 'werden'} mit der geteilten Version aktualisiert.</p>` : ''}

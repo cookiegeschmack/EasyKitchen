@@ -395,11 +395,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         }
 
         func completePrint(success: Bool) {
-            if success, !embed.isEmpty, let doc = PDFDocument(url: target) {
+            if success, let doc = PDFDocument(url: target) {
+                // leere Schlussseiten (knapper Überlauf) entfernen
+                while doc.pageCount > 1, let last = doc.page(at: doc.pageCount - 1),
+                      (last.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      last.annotations.isEmpty {
+                    doc.removePage(at: doc.pageCount - 1)
+                }
                 var attrs = doc.documentAttributes ?? [:]
                 attrs[PDFDocumentAttribute.titleAttribute] = target.deletingPathExtension().lastPathComponent
                 attrs[PDFDocumentAttribute.creatorAttribute] = APP_NAME
-                attrs[PDFDocumentAttribute.keywordsAttribute] = ["EasyKitchen", "EKDATA:" + Data(embed.utf8).base64EncodedString()]
+                if !embed.isEmpty {
+                    attrs[PDFDocumentAttribute.keywordsAttribute] = ["EasyKitchen", "EKDATA:" + Data(embed.utf8).base64EncodedString()]
+                }
                 doc.documentAttributes = attrs
                 _ = doc.write(to: target)
             }

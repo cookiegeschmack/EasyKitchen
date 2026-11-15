@@ -30,7 +30,9 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Rezepte anlegen**: Name, Zutatenliste (Pflicht), Zubereitung, Kochzeit, Aufwand, Kosten, Portionen und optional ein Foto (auswählen, hineinziehen oder einfügen).
 - **Mengen bequem eingeben**: Jede Zutat hat ein Zahlenfeld, einen Regler und −/+ Knöpfe. Die Schrittweite passt sich der gewählten Einheit an (g, kg, ml, l, Stück, EL, TL, Prise, Bund, Dose, Packung, Zehe, Tasse, nach Geschmack).
 - **Reste-Suche**: Gib ein, was du noch hast (z. B. `Rindfleisch, Paprika`). Es erscheinen alle Rezepte, in denen mindestens eine dieser Zutaten vorkommt – die passendsten zuerst, mit Anzeige „✓ 2 von 6 Zutaten da“.
-- **Filter**: Kochzeit (≤ 15 / 30 / 60 Min), Aufwand (einfach / mittel / aufwendig), Kosten (€ / €€ / €€€) und Sortierung.
+- **Zeiten**: Vorbereitung und Zubereitung getrennt, die Gesamtzeit wird berechnet und als Tabelle angezeigt (App & PDF).
+- **Nährwerte (Richtwerte)**: Kalorien, Eiweiß, Kohlenhydrate und Fett pro Portion werden offline aus den Zutaten geschätzt (`app/js/nutrition.js`, ~180 gängige Zutaten) – als Balkendiagramm unten am Rezept und live im Editor, in der PDF kurz ganz unten. Unbekannte Zutaten werden als „nicht berücksichtigt“ ausgewiesen.
+- **Filter**: Gesamtzeit (≤ 15 / 30 / 60 Min), Aufwand (einfach / mittel / aufwendig), Kosten (€ / €€ / €€€) und Sortierung.
 - **Watchlist**: Rezepte mit ★ markieren, die du bald kochen möchtest – eigener Reiter, gleiche Suche & Filter.
 - **Teilen & PDF-Export**: Ein Rezept (Detailansicht → „Teilen“) oder alle angezeigten Rezepte als PDF im einheitlichen EasyKitchen-Layout speichern oder per AirDrop/Nachrichten/Mail teilen.
 - **Austausch zwischen EasyKitchen-Nutzern**: `.easykitchen`-Dateien per Doppelklick importieren (inkl. Foto). Auch von EasyKitchen erzeugte PDFs enthalten die Rezeptdaten und werden 1:1 importiert.

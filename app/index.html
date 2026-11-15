@@ -43,7 +43,7 @@
 
     <section class="filters" aria-label="Filter">
       <div class="filter-group">
-        <span class="filter-title">Kochzeit</span>
+        <span class="filter-title">Gesamtzeit</span>
         <div class="chips" data-filter="time">
           <button type="button" class="chip active" data-value="0">Alle</button>
           <button type="button" class="chip" data-value="15">≤ 15 Min</button>
@@ -73,7 +73,7 @@
         <label class="filter-title" for="sort-select">Sortieren</label>
         <select id="sort-select" class="select">
           <option value="match">Passend zur Suche</option>
-          <option value="time">Kochzeit</option>
+          <option value="time">Gesamtzeit</option>
           <option value="name">Name (A–Z)</option>
           <option value="new">Neueste zuerst</option>
         </select>
@@ -130,14 +130,31 @@
           <input type="file" id="photo-input" accept="image/*" hidden>
         </div>
 
-        <div class="field-row three">
-          <div class="field">
-            <label for="ed-time">Kochzeit</label>
-            <div class="inline-range">
-              <input type="range" id="ed-time-range" min="5" max="180" step="5" value="30" aria-label="Kochzeit Regler">
-              <div class="num-unit"><input type="number" id="ed-time" class="input input-num" min="0" max="1440" value="30"><span>Min</span></div>
+        <div class="field">
+          <span class="field-label">Zeiten</span>
+          <div class="time-grid">
+            <div class="time-cell">
+              <label for="ed-prep">Vorbereitung</label>
+              <div class="inline-range">
+                <input type="range" id="ed-prep-range" min="0" max="120" step="5" value="0" aria-label="Vorbereitungszeit Regler">
+                <div class="num-unit"><input type="number" id="ed-prep" class="input input-num" min="0" max="1440" value="0"><span>Min</span></div>
+              </div>
+            </div>
+            <div class="time-cell">
+              <label for="ed-cook">Zubereitung</label>
+              <div class="inline-range">
+                <input type="range" id="ed-cook-range" min="0" max="180" step="5" value="30" aria-label="Zubereitungszeit Regler">
+                <div class="num-unit"><input type="number" id="ed-cook" class="input input-num" min="0" max="1440" value="30"><span>Min</span></div>
+              </div>
+            </div>
+            <div class="time-cell time-total">
+              <span class="time-total-label">Gesamtzeit</span>
+              <strong id="ed-total">30 Min</strong>
             </div>
           </div>
+        </div>
+
+        <div class="field-row two">
           <div class="field">
             <span class="field-label">Aufwand</span>
             <div class="segmented" data-seg="effort">
@@ -181,6 +198,11 @@
           <input type="checkbox" id="ed-watch">
           <span>Auf die Watchlist setzen</span>
         </label>
+
+        <section class="nutri-section">
+          <h3>Nährwerte <span class="muted">· Richtwerte pro Portion</span></h3>
+          <div id="ed-nutrition"></div>
+        </section>
       </div>
 
       <div class="modal-foot">
@@ -286,6 +308,7 @@
 
   <script src="js/data.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/nutrition.js"></script>
   <script src="js/changelog.js"></script>
   <script src="js/updater.js"></script>
   <script src="js/share.js"></script>

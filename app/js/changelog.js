@@ -7,11 +7,15 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
-    version: '1.1.1',
+    version: '1.2.0',
     date: '2026-11-15',
-    title: 'Fehlerbehebung',
+    title: 'Zeiten-Tabelle & Nährwerte',
     items: [
-      '🛠 Behoben: EasyKitchen hat sich nach dem Erstellen oder Teilen einer PDF von selbst geschlossen.'
+      '⏱ Zeiten getrennt nach Vorbereitung und Zubereitung – die Gesamtzeit wird automatisch berechnet und übersichtlich als Tabelle angezeigt (auch in der PDF). Bestehende Rezepte wurden übernommen.',
+      '📊 Nährwerte: Kalorien, Eiweiß, Kohlenhydrate und Fett pro Portion werden aus den Zutaten geschätzt und als Balkendiagramm unten am Rezept angezeigt – schon live beim Eintragen der Zutaten.',
+      '📄 In der PDF stehen die Nährwerte kurz ganz unten.',
+      '🛠 Behoben: EasyKitchen hat sich nach dem Erstellen oder Teilen einer PDF von selbst geschlossen.',
+      '🛠 Behoben: Deine gespeicherten Rezepte haben unter Umständen einen älteren Stand angezeigt.'
     ]
   },
   {

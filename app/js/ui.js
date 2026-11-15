@@ -55,7 +55,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const unit = ns.Data.UNIT_BY_ID[ing.unit];
     if (!unit || unit.id === 'ng') return 'nach Geschmack';
     if (!ing.amount) return '';
-    return `${fmtNum(ing.amount)} ${unit.label}`;
+    return `${fmtNum(ing.amount)} ${ing.amount > 1 && unit.plural ? unit.plural : unit.label}`;
   }
 
   function fmtTime(min) {
