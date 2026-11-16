@@ -7,6 +7,17 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.4.0',
+    date: '2026-11-16',
+    title: 'Neue Filter, Portionsregler & genauere Suche',
+    items: [
+      '🔍 Genauere Suche: „Zwiebel“ findet keine Frühlingszwiebeln mehr, „Tomaten“ kein Tomatenmark – ebenso Paprikapulver, Zitronensaft, Reisessig, Kokosmilch & Co.',
+      '🍽 Portionsregler in jedem Rezept: Portionen per Regler anpassen, die Mengen rechnen sich automatisch um. Deine Wahl wird pro Rezept gemerkt – das Rezept selbst bleibt unverändert.',
+      '🌱 Neue Filter: Vegetarisch, 💪 High Protein, Hauptspeise/Nebenspeise und Süß/Salzig. Alles wird automatisch erkannt und lässt sich im Rezept-Editor anpassen.',
+      '✨ Rezept des Tages zeigt jetzt ausschließlich Hauptspeisen.'
+    ]
+  },
+  {
     version: '1.3.3',
     date: '2026-11-16',
     title: 'Test-Update',

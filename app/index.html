@@ -40,9 +40,27 @@
 
     <section class="filters" aria-label="Filter">
       <div class="filter-group">
-        <span class="filter-title">Favoriten</span>
+        <span class="filter-title">Auswahl</span>
         <div class="chips">
           <button type="button" class="chip chip-fav" id="fav-filter" aria-pressed="false">☆ Nur Favoriten <span class="chip-count" id="count-fav">0</span></button>
+          <button type="button" class="chip chip-toggle" data-toggle="veg" aria-pressed="false" title="Ohne Fleisch und Fisch (automatisch aus den Zutaten erkannt)">🌱 Vegetarisch</button>
+          <button type="button" class="chip chip-toggle" data-toggle="protein" aria-pressed="false" title="Mind. 20 g Eiweiß pro Portion und mind. 20 % der Kalorien aus Eiweiß (Richtwert aus den Zutaten)">💪 High Protein</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-title">Art</span>
+        <div class="chips" data-filter="course">
+          <button type="button" class="chip active" data-value="0">Alle</button>
+          <button type="button" class="chip" data-value="main">Hauptspeise</button>
+          <button type="button" class="chip" data-value="side">Nebenspeise</button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-title">Geschmack</span>
+        <div class="chips" data-filter="taste">
+          <button type="button" class="chip active" data-value="0">Alle</button>
+          <button type="button" class="chip" data-value="savory">Salzig</button>
+          <button type="button" class="chip" data-value="sweet">Süß</button>
         </div>
       </div>
       <div class="filter-group">
@@ -178,6 +196,31 @@
               <button type="button" data-value="1" class="active">€</button>
               <button type="button" data-value="2">€€</button>
               <button type="button" data-value="3">€€€</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row three">
+          <div class="field">
+            <span class="field-label">Art</span>
+            <div class="segmented" data-seg="course">
+              <button type="button" data-value="main" class="active">Hauptspeise</button>
+              <button type="button" data-value="side">Nebenspeise</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Geschmack</span>
+            <div class="segmented" data-seg="taste">
+              <button type="button" data-value="savory" class="active">Salzig</button>
+              <button type="button" data-value="sweet">Süß</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="field-label">Vegetarisch <span class="opt" id="ed-veg-hint"></span></span>
+            <div class="segmented" data-seg="diet">
+              <button type="button" data-value="auto" class="active">Automatisch</button>
+              <button type="button" data-value="veg">Ja</button>
+              <button type="button" data-value="nonveg">Nein</button>
             </div>
           </div>
         </div>
@@ -370,6 +413,7 @@
   <script src="js/data.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/nutrition.js"></script>
+  <script src="js/classify.js"></script>
   <script src="js/changelog.js"></script>
   <script src="js/updater.js"></script>
   <script src="js/share.js"></script>

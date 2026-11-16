@@ -77,6 +77,9 @@ window.EasyKitchen = window.EasyKitchen || {};
           <td><span>Gesamtzeit</span><strong>${r.time ? esc(UI.fmtTime(r.time)) : '–'}</strong></td>
         </tr></table>
         <div class="meta">
+          ${ns.Classify ? `<span>${esc(ns.Classify.LABELS.course[ns.Classify.of(r).course])}</span>` : ''}
+          ${ns.Classify && ns.Classify.of(r).veg ? '<span>🌱 Vegetarisch</span>' : ''}
+          ${ns.Classify && ns.Classify.of(r).highProtein ? '<span>💪 High Protein</span>' : ''}
           <span>${esc(D.EFFORT[r.effort])}</span>
           <span>${'€'.repeat(r.cost)}<span class="dim">${'€'.repeat(3 - r.cost)}</span></span>
           <span>${esc(servings)}</span>

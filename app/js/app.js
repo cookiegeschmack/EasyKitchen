@@ -6,7 +6,8 @@ window.EasyKitchen = window.EasyKitchen || {};
   const D = ns.Data, UI = ns.UI, U = ns.Updater;
   const $ = UI.$, esc = UI.esc;
 
-  const view = { fav: false, query: '', time: 0, effort: 0, cost: 0, sort: 'match' };
+  const view = { fav: false, veg: false, protein: false, course: 0, taste: 0, query: '', time: 0, effort: 0, cost: 0, sort: 'match' };
+  const CL = () => ns.Classify;
   const SORT_LABELS = { match: 'Passend zur Suche', time: 'Gesamtzeit', name: 'Name (A–Z)', new: 'Neueste zuerst', fav: 'Favoriten zuerst' };
   let visibleIds = [];
 
@@ -19,6 +20,10 @@ window.EasyKitchen = window.EasyKitchen || {};
     let list = D.getRecipes().map(r => ({ r, m: D.matchRecipe(r, terms) }));
 
     if (view.fav) list = list.filter(x => x.r.watch);
+    if (view.veg) list = list.filter(x => CL().of(x.r).veg);
+    if (view.protein) list = list.filter(x => CL().of(x.r).highProtein);
+    if (view.course) list = list.filter(x => CL().of(x.r).course === view.course);
+    if (view.taste) list = list.filter(x => CL().of(x.r).taste === view.taste);
     if (terms.length) list = list.filter(x => x.m.matchedTerms.length > 0);
     if (view.time) list = list.filter(x => x.r.time > 0 && x.r.time <= view.time);
     if (view.effort) list = list.filter(x => x.r.effort === view.effort);
@@ -37,7 +42,8 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   function metaChips(r) {
-    return `
+    const c = CL().of(r);
+    return `${c.veg ? '<span class="meta meta-veg" title="Vegetarisch">🌱</span>' : ''}${c.highProtein ? '<span class="meta meta-protein" title="High Protein">💪</span>' : ''}
       <span class="meta">⏱ ${esc(UI.fmtTime(r.time))}</span>
       <span class="meta">${esc(D.EFFORT[r.effort])}</span>
       <span class="meta">${'€'.repeat(r.cost)}<span class="meta-dim">${'€'.repeat(3 - r.cost)}</span></span>`;
@@ -96,7 +102,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const { list, terms } = filteredRecipes();
     const grid = $('recipe-grid');
     const empty = $('empty-state');
-    const filtersActive = !!(view.time || view.effort || view.cost || view.fav);
+    const filtersActive = !!(view.time || view.effort || view.cost || view.fav || view.veg || view.protein || view.course || view.taste);
     $('reset-filters').hidden = !filtersActive && !view.query;
 
     grid.innerHTML = list.map(x => cardHTML(x.r, x.m, terms)).join('');
@@ -139,6 +145,8 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function resetFilters() {
     view.query = ''; view.time = 0; view.effort = 0; view.cost = 0; view.fav = false;
+    view.veg = false; view.protein = false; view.course = 0; view.taste = 0;
+    document.querySelectorAll('[data-toggle]').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
     $('fav-filter').classList.remove('active');
     $('fav-filter').setAttribute('aria-pressed', 'false');
     $('search-input').value = '';
@@ -168,6 +176,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const terms = D.parseTerms(view.query);
     const m = D.matchRecipe(r, terms);
     const steps = r.steps.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const pref = D.getServingsPref(id);
 
     $('detail-card').innerHTML = `
       ${r.image ? `<div class="detail-hero"><img src="${r.image}" alt=""></div>` : ''}
@@ -178,20 +187,24 @@ window.EasyKitchen = window.EasyKitchen || {};
       <div class="modal-body">
         ${timeTableHTML(r)}
         <div class="card-meta detail-meta">
+          <span class="meta">${esc(CL().LABELS.course[CL().of(r).course])}</span>
+          <span class="meta">${esc(CL().LABELS.taste[CL().of(r).taste])}</span>
+          ${CL().of(r).veg ? '<span class="meta meta-veg">🌱 Vegetarisch</span>' : ''}
+          ${CL().of(r).highProtein ? '<span class="meta meta-protein">💪 High Protein</span>' : ''}
           <span class="meta">${esc(D.EFFORT[r.effort])}</span>
           <span class="meta">${'€'.repeat(r.cost)}<span class="meta-dim">${'€'.repeat(3 - r.cost)}</span></span>
-          <span class="meta">${r.servings} ${r.servings === 1 ? 'Portion' : 'Portionen'}</span>
         </div>
         <div class="detail-cols">
           <section>
             <h3>Zutaten</h3>
-            <ul class="ing-table">
-              ${r.ingredients.map((i, idx) => `
-                <li class="${m.matchedIngredients.has(idx) ? 'have' : ''}">
-                  <span class="ing-amt">${esc(UI.fmtAmount(i))}</span>
-                  <span class="ing-name">${esc(i.name)}</span>
-                </li>`).join('')}
-            </ul>
+            <div class="serv-ctrl">
+              <button type="button" class="step-btn" data-serv-step="-1" aria-label="Weniger Portionen">−</button>
+              <input type="range" id="serv-range" min="1" max="${Math.max(12, r.servings * 3)}" step="1" value="${pref}" aria-label="Portionen">
+              <button type="button" class="step-btn" data-serv-step="1" aria-label="Mehr Portionen">+</button>
+              <span class="serv-label" id="serv-label"></span>
+              <button type="button" class="link-btn serv-reset" id="serv-reset" hidden>Original (${r.servings})</button>
+            </div>
+            <ul class="ing-table" id="detail-ings"></ul>
           </section>
           <section>
             <h3>Zubereitung</h3>
@@ -214,14 +227,41 @@ window.EasyKitchen = window.EasyKitchen || {};
           <button type="button" class="btn btn-primary" data-act="edit">Bearbeiten</button>
         </div>
       </div>`;
+    renderDetailIngredients(r, m, pref);
     UI.openModal('detail-modal');
+  }
+
+  /** Zutatenliste für die gewählte Portionszahl (Rezept bleibt unverändert). */
+  function renderDetailIngredients(r, m, servings) {
+    const factor = servings / Math.max(1, r.servings);
+    $('detail-ings').innerHTML = r.ingredients.map((i, idx) => `
+      <li class="${m && m.matchedIngredients.has(idx) ? 'have' : ''}">
+        <span class="ing-amt">${esc(UI.fmtScaled(i, factor))}</span>
+        <span class="ing-name">${esc(i.name)}</span>
+      </li>`).join('');
+    $('serv-label').textContent = `${servings} ${servings === 1 ? 'Portion' : 'Portionen'}`;
+    $('serv-range').value = servings;
+    $('serv-reset').hidden = servings === r.servings;
+    $('detail-ings').classList.toggle('scaled', servings !== r.servings);
+  }
+
+  let servSaveTimer = null;
+  function setDetailServings(n) {
+    const r = D.getRecipe(detailId);
+    if (!r) return;
+    n = Math.max(1, Math.min(50, Math.round(n)));
+    const range = $('serv-range');
+    if (n > Number(range.max)) range.max = n;
+    renderDetailIngredients(r, D.matchRecipe(r, D.parseTerms(view.query)), n);
+    clearTimeout(servSaveTimer);
+    servSaveTimer = setTimeout(() => D.setServingsPref(r.id, n), 250);   // als Präferenz merken
   }
 
   // =========================================================================
   // Editor
   // =========================================================================
 
-  const editor = { id: null, image: '', effort: 1, cost: 1 };
+  const editor = { id: null, image: '', effort: 1, cost: 1, course: 'main', taste: 'savory', diet: 'auto' };
 
   function unitOptions(selected) {
     return D.UNITS.map(u => `<option value="${u.id}" ${u.id === selected ? 'selected' : ''}>${esc(u.label)}</option>`).join('');
@@ -311,7 +351,8 @@ window.EasyKitchen = window.EasyKitchen || {};
   function setSegment(name, value) {
     editor[name] = value;
     document.querySelectorAll(`.segmented[data-seg="${name}"] button`).forEach(b =>
-      b.classList.toggle('active', Number(b.dataset.value) === value));
+      b.classList.toggle('active', String(b.dataset.value) === String(value)));
+    if (name === 'diet') updateVegHint();
   }
 
   function setPhoto(dataUrl) {
@@ -347,8 +388,17 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('ed-total').textContent = t ? UI.fmtTime(t) : '–';
   }
 
+  function updateVegHint() {
+    const el = $('ed-veg-hint');
+    if (!el) return;
+    if (editor.diet !== 'auto') { el.textContent = ''; return; }
+    const isVeg = !readIngredients().some(i => CL().isMeatIngredient(i.name));
+    el.textContent = `(erkannt: ${isVeg ? 'ja' : 'nein'})`;
+  }
+
   let nutriTimer = null;
   function updateEditorNutrition() {
+    updateVegHint();
     clearTimeout(nutriTimer);
     nutriTimer = setTimeout(() => {
       $('ed-nutrition').innerHTML = ns.Nutrition.renderBars({
@@ -380,6 +430,10 @@ window.EasyKitchen = window.EasyKitchen || {};
     else setTimes(0, 30);
     setSegment('effort', r ? r.effort : 1);
     setSegment('cost', r ? r.cost : 1);
+    const guess = r ? CL().preview(r) : { course: 'main', taste: 'savory' };
+    setSegment('course', (r && r.course) || guess.course);
+    setSegment('taste', (r && r.taste) || guess.taste);
+    setSegment('diet', (r && r.diet) || 'auto');
     setPhoto(r ? (r.image || '') : '');
     $('ing-list').innerHTML = '';
     (r && r.ingredients.length ? r.ingredients : [null]).forEach(i => addIngredientRow(i));
@@ -413,6 +467,9 @@ window.EasyKitchen = window.EasyKitchen || {};
       cookTime: Number($('ed-cook').value) || 0,
       effort: editor.effort,
       cost: editor.cost,
+      course: editor.course,
+      taste: editor.taste,
+      diet: editor.diet,
       servings: Number($('ed-servings').value) || 1,
       ingredients,
       steps: $('ed-steps').value.trim(),
@@ -503,8 +560,10 @@ window.EasyKitchen = window.EasyKitchen || {};
     const day = todayKey();
     const order = list => list.slice().sort((a, b) => dayHash(day + a.id) - dayHash(day + b.id));
     // Favoriten zuerst; reichen sie nicht, wird mit weiteren Rezepten aufgefüllt
-    const favs = order(all.filter(r => r.watch));
-    const rest = order(all.filter(r => !r.watch));
+    // ausschließlich Hauptspeisen
+    const mains = all.filter(r => CL().of(r).course === 'main');
+    const favs = order(mains.filter(r => r.watch));
+    const rest = order(mains.filter(r => !r.watch));
     return favs.concat(rest).slice(0, slots);
   }
 
@@ -583,6 +642,15 @@ window.EasyKitchen = window.EasyKitchen || {};
       renderList();
     });
 
+    // Schalter: Vegetarisch / High Protein
+    document.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.toggle;
+      view[k] = !view[k];
+      b.classList.toggle('active', view[k]);
+      b.setAttribute('aria-pressed', String(view[k]));
+      renderList();
+    }));
+
     // Version oben → Update-Prüfung
     $('topbar-version').addEventListener('click', () => U.check({ manual: true }));
 
@@ -630,7 +698,8 @@ window.EasyKitchen = window.EasyKitchen || {};
         const chip = e.target.closest('.chip');
         if (!chip) return;
         group.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
-        view[group.dataset.filter] = Number(chip.dataset.value);
+        const v = chip.dataset.value;
+        view[group.dataset.filter] = v === '0' ? 0 : (/^\d+$/.test(v) ? Number(v) : v);
         renderList();
       });
     });
@@ -665,6 +734,16 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (!b) return;
       if (b.dataset.act === 'new') openEditor();
       if (b.dataset.act === 'reset') resetFilters();
+    });
+
+    // Portionsregler in der Detailansicht
+    $('detail-card').addEventListener('input', e => {
+      if (e.target.id === 'serv-range') setDetailServings(Number(e.target.value));
+    });
+    $('detail-card').addEventListener('click', e => {
+      const st = e.target.closest('[data-serv-step]');
+      if (st) { setDetailServings(Number($('serv-range').value) + Number(st.dataset.servStep)); return; }
+      if (e.target.closest('#serv-reset')) { const r = D.getRecipe(detailId); if (r) setDetailServings(r.servings); }
     });
 
     // Detail-Aktionen
@@ -721,7 +800,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('add-ing-btn').addEventListener('click', updateEditorNutrition);
     document.querySelectorAll('.segmented[data-seg]').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button');
-      if (b) setSegment(seg.dataset.seg, Number(b.dataset.value));
+      if (b) setSegment(seg.dataset.seg, /^\d+$/.test(b.dataset.value) ? Number(b.dataset.value) : b.dataset.value);
     }));
     document.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
       const inp = $('ed-servings');

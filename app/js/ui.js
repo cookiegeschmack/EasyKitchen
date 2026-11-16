@@ -62,6 +62,18 @@ window.EasyKitchen = window.EasyKitchen || {};
     return `${fmtNum(ing.amount)} ${ing.amount > 1 && unit.plural ? unit.plural : unit.label}`;
   }
 
+  /** Menge für eine andere Portionszahl umrechnen und sinnvoll runden. */
+  function fmtScaled(ing, factor) {
+    if (!factor || factor === 1 || !ing.amount || ing.unit === 'ng') return fmtAmount(ing);
+    let v = ing.amount * factor;
+    const countable = ['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig', 'handvoll', 'prise', 'msp'];
+    if (countable.includes(ing.unit)) v = Math.max(0.5, Math.round(v * 2) / 2);
+    else if (v >= 100) v = Math.round(v / 5) * 5;
+    else if (v >= 10) v = Math.round(v);
+    else v = Math.round(v * 10) / 10;
+    return fmtAmount({ ...ing, amount: v });
+  }
+
   function fmtTime(min) {
     if (!min) return '–';
     if (min < 60) return `${min} Min`;
@@ -99,5 +111,5 @@ window.EasyKitchen = window.EasyKitchen || {};
     });
   }
 
-  ns.UI = { $, esc, toast, openModal, closeModal, topModal, fmtNum, fmtAmount, fmtTime, readImageFile };
+  ns.UI = { $, esc, toast, openModal, closeModal, topModal, fmtNum, fmtAmount, fmtScaled, fmtTime, readImageFile };
 })(window.EasyKitchen);
