@@ -235,13 +235,16 @@ window.EasyKitchen = window.EasyKitchen || {};
           </table>
         </div>
         <div class="cmp-import">
-          <label for="cmp-name">Trotzdem übernehmen – Name des neuen Rezepts</label>
+          <label for="cmp-name">Trotzdem übernehmen – Name des Rezepts</label>
           <input type="text" id="cmp-name" class="input" maxlength="120" value="${esc(imported.title)}">
-          <p class="muted">Du kannst den Namen ändern oder gleich lassen. Das ${opts.inFile ? 'andere' : 'vorhandene'} Rezept bleibt unverändert.</p>
+          <p class="muted">Du kannst den Namen ändern oder gleich lassen.
+            ${opts.inFile ? 'Das andere Rezept der Datei bleibt unverändert.'
+              : '„Als neues Rezept importieren“ behält beide Fassungen. „Vorhandenes ersetzen“ überschreibt das vorhandene Rezept mit der importierten Fassung – Favorit und Wochenplan bleiben erhalten.'}</p>
         </div>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-ghost" data-close="compare-modal">Nicht importieren</button>
+        ${opts.inFile ? '' : '<button type="button" class="btn btn-secondary" id="cmp-replace-btn">Vorhandenes ersetzen</button>'}
         <button type="button" class="btn btn-primary" id="cmp-import-btn">Als neues Rezept importieren</button>
       </div>`;
 
@@ -256,7 +259,21 @@ window.EasyKitchen = window.EasyKitchen || {};
       UI.closeModal('compare-modal');
       ns.App.renderList();
       UI.toast(`„${name}“ als neues Rezept importiert ✓`);
-      if (opts.onImported) opts.onImported(rec);
+      if (opts.onImported) opts.onImported(rec, 'new');
+    });
+
+    // Vorhandenes Rezept durch die importierte Fassung ersetzen (gleiche ID → Favorit & Wochenplan bleiben)
+    const rep = $('cmp-replace-btn');
+    if (rep) rep.addEventListener('click', () => {
+      const name = $('cmp-name').value.trim() || imported.title;
+      if (!confirm(`„${existing.title}“ durch die importierte Fassung ersetzen?\n\nDie bisherige Fassung (Zutaten, Schritte, Foto …) wird überschrieben.`)) return;
+      const rec = { ...imported, id: existing.id, title: name, watch: !!existing.watch,
+        image: imported.image || existing.image || '', createdAt: existing.createdAt || Date.now(), updatedAt: Date.now() };
+      D.importRecipes([rec]);
+      UI.closeModal('compare-modal');
+      ns.App.renderList();
+      UI.toast(`„${name}“ ersetzt ✓`);
+      if (opts.onImported) opts.onImported(rec, 'replace');
     });
 
     UI.openModal('compare-modal');

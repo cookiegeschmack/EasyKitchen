@@ -7,6 +7,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.6.2',
+    date: '2026-11-16',
+    title: 'Doppelte Rezepte ersetzen',
+    items: [
+      '🔁 Im Vergleich doppelter Rezepte gibt es jetzt „Vorhandenes ersetzen“: Die importierte Fassung überschreibt das bestehende Rezept (nach Rückfrage) – Favorit und Wochenplan bleiben erhalten.'
+    ]
+  },
+  {
     version: '1.6.1',
     date: '2026-11-16',
     title: 'Klügerer Import & eigene Einheiten',
