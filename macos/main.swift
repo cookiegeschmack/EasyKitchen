@@ -619,6 +619,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     }
 
     func findGHBinary() -> String? {
+        // Testschalter: simuliert einen Mac ohne GitHub-Anmeldung (wie bei Freunden)
+        if ProcessInfo.processInfo.environment["EASYKITCHEN_NO_GH"] == "1" { return nil }
         let home = NSHomeDirectory()
         let candidates = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh", "\(home)/.local/bin/gh", "\(home)/bin/gh"]
         return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
@@ -856,7 +858,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             if self.downloadViaGH(tagName: tagName, percent: 50) { return }
-            self.progress("error", 0, "Direkt-Download nicht möglich (\(reason)). Bitte lade die \(APP_NAME).dmg im Browser herunter und wähle sie hier aus.")
+            self.progress("error", 0, "Automatischer Download nicht möglich (\(reason)). Nutze unten „Direkt herunterladen“ und danach „Heruntergeladene DMG installieren“.")
         }
     }
 
@@ -920,7 +922,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             self.progress("installing", 96, "Aktualisiere \(APP_NAME).app & starte neu…")
 
             let currentBundlePath = Bundle.main.bundleURL.path
-            let destAppPath = currentBundlePath.hasPrefix("/Volumes/") ? "/Applications/\(APP_NAME).app" : currentBundlePath
+            // Aus DMG (/Volumes) oder von macOS „verschoben“ gestartet (App Translocation, schreibgeschützt)
+            // → in den Programme-Ordner installieren statt an den aktuellen Ort
+            let isTemporaryLocation = currentBundlePath.hasPrefix("/Volumes/") || currentBundlePath.contains("/AppTranslocation/")
+            let destAppPath = isTemporaryLocation ? "/Applications/\(APP_NAME).app" : currentBundlePath
             let pid = ProcessInfo.processInfo.processIdentifier
             let scriptPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("easykitchen_update_\(pid).sh")
             let cleanupSourceCmd = deleteSourceAfter ? "rm -rf \"\(sourceURL.path)\"" : ""
