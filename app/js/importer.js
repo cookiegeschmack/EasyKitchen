@@ -32,7 +32,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     [/^(prisen?|pinch)$/, 'prise', 1],
     [/^(bund|bündel|bunch)$/, 'bund', 1],
     [/^(dosen?|ds|can|cans)$/, 'dose', 1],
-    [/^(pck|pkg|päckchen|packung|packungen|pack|pckg)$/, 'pck', 1],
+    [/^(pck|pkg|pkt|päckchen|päckch|packung|packungen|pack|pckg|päckchen)$/, 'pck', 1],
     [/^(zehen?|cloves?)$/, 'zehe', 1],
     [/^(knoblauchzehen?)$/, 'zehe', 1, 'Knoblauch'],
     [/^(tassen?|cups?)$/, 'tasse', 1],
@@ -42,11 +42,19 @@ window.EasyKitchen = window.EasyKitchen || {};
     [/^(zweige?|zweiglein|sprigs?)$/, 'zweig', 1],
     [/^(handvoll)$/, 'handvoll', 1],
     [/^(msp|messerspitzen?)$/, 'msp', 1],
-    [/^(stk|stck|stück|st|pieces?|pcs|pc)$/, 'stk', 1]
+    [/^(stk|stck|stück|stücke|st|pieces?|pcs|pc)$/, 'stk', 1]
   ];
+  // Einheiten ohne feste Entsprechung → „Eigenes …“ mit dem Wort aus dem Rezept
+  const CUSTOM_UNIT = /^(blatt|blätter|stange|stangen|stängel|stiel|stiele|würfel|tropfen|spritzer|schuss|kugel|kugeln|kopf|köpfe|knolle|knollen|beutel|btl|tüte|tüten|flasche|flaschen|rolle|rollen|platte|platten|tafel|tafeln|schale|schalen|riegel|ecke|ecken|kästchen|schote|schoten|tube|tuben|rispe|rispen|stückchen|portion|portionen|kapsel|kapseln|blättchen)$/i;
+  // Zahlwörter am Zeilenanfang („eine Zwiebel“, „zwei Eier“, „eine halbe Zitrone“)
+  const NUM_WORDS = { ein: 1, eine: 1, einen: 1, einer: 1, eins: 1, zwei: 2, drei: 3, vier: 4, 'fünf': 5, sechs: 6, sieben: 7, acht: 8,
+    neun: 9, zehn: 10, elf: 11, 'zwölf': 12, halb: 0.5, halbe: 0.5, halber: 0.5, halbes: 0.5, eineinhalb: 1.5, anderthalb: 1.5, zweieinhalb: 2.5,
+    viertel: 0.25, dreiviertel: 0.75 };
 
   const ING_HEADER = /^(zutaten|zutatenliste|die zutaten|ingredients|du brauchst|das brauchst du|was du brauchst|einkaufsliste)\b/i;
   const STEP_HEADER = /^(zubereitung|zubereitungsschritte|anleitung|anleitungen|so geht'?s|so wird'?s gemacht|so gehts|schritte|arbeitsschritte|how to make|instructions|directions|method|preparation|steps)\b/i;
+  // Reine Schrittmarke in eigener Zeile: „Schritt“, „Schritt 1“, „SCHRITT 2/5“, „Schritt 3 von 6“, „1. Schritt“, „Step 4“
+  const STEP_MARK = /^(?:(?:arbeits|zubereitungs)?schritt|step)(?:\s*(?:nr\.?\s*)?\d{1,2}(?:\s*(?:\/|von|of)\s*\d{1,2})?)?\s*[:.)\-–]?$|^\d{1,2}\s*\.\s*(?:arbeits)?schritt\s*:?$/i;
   // Hinweise/Tipps nach den Schritten: Überschrift weglassen, Inhalt als letzten Schritt behalten
   const NOTES_HEADER = /^(notizen|notiz|hinweis|hinweise|tipp|tipps|tip|tips|notes)\b/i;
   const END_HEADER = /^(kommentare|bewertungen|ähnliche rezepte|das könnte dich|weitere rezepte|nährwerte|nährwert|naehrwerte|nährwerte pro portion|anzeige|werbung|reviews|comments|nutrition|tipps? (?:und|&) tricks|hilfsmittel|utensilien|küchenutensilien|equipment|das solltest du haben|das brauchst du an geräten|was meinst du|hast du das rezept|das rezept findest du|mehr (?:einfache )?rezepte)\b/i;
@@ -127,16 +135,45 @@ window.EasyKitchen = window.EasyKitchen || {};
   const TRAIL_QTY = new RegExp(`^(.*?[a-zäöüß)].*?)\\s+${QTY}\\s*([a-zäöüß.]{0,14})$`, 'i');
 
   function matchUnit(token) {
-    const t = String(token || '').toLowerCase().replace(/\.$/, '');
+    const raw = String(token || '').replace(/\.$/, '');
+    const t = raw.toLowerCase();
     for (const [re, unit, factor, prefix] of UNIT_WORDS) if (re.test(t)) return { unit, factor, prefix };
+    if (CUSTOM_UNIT.test(t)) return { unit: 'custom', factor: 1, custom: raw.charAt(0).toUpperCase() + raw.slice(1) };
     return null;
+  }
+
+  /** Zutat inkl. eigener Einheit zusammenbauen. */
+  function mkIng(name, amount, u) {
+    const ing = { name, amount: Number.isFinite(amount) ? Number((amount * (u ? u.factor : 1)).toFixed(2)) : 0, unit: u ? u.unit : 'stk' };
+    if (u && u.custom) ing.customUnit = u.custom;
+    return ing;
+  }
+
+  /** Mengenangaben vereinheitlichen, bevor die Zeile zerlegt wird. */
+  function normalizeQty(l) {
+    l = l.replace(/(\d)\s*\u2044\s*(\d)/g, '$1/$2')                 // 1⁄2 → 1/2
+      .replace(/(\d)([½¼¾⅓⅔⅛⅕])/g, '$1 $2');
+    // Zahlwörter: „eine halbe Zitrone“ / „zwei Eier“ / „1 halbe Gurke“
+    l = l.replace(/^(?:(\d+)\s+)?(ein|eine|einen|einer|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|eineinhalb|anderthalb|zweieinhalb|dreiviertel)?\s*(halbe[rs]?|halb|viertel)?(?=\s+\S)/i, (m, num, w1, w2) => {
+      if (!w1 && !w2) return m;
+      let v = num ? Number(num) : 0;
+      if (w1) v = v ? v * NUM_WORDS[w1.toLowerCase()] : NUM_WORDS[w1.toLowerCase()];
+      if (w2) v = v ? v * NUM_WORDS[w2.toLowerCase()] : NUM_WORDS[w2.toLowerCase()];
+      return v ? String(v).replace('.', ',') : m;
+    });
+    // „gestr. TL“, „gehäufter EL“, „knapp 200 g“ → Zusatz weglassen
+    l = l.replace(/^([\d.,\/½¼¾⅓⅔⅛\s-]+)\s*(?:gestr\.?|gestrichene[rns]?|gehäufte[rns]?|gehäuft|leicht gehäufte[rns]?|knappe[rns]?|gute[rns]?|große[rns]?(?=\s+(?:el|tl|prise|tasse|handvoll|schuss|spritzer)\b))\s+/i, '$1 ');
+    l = l.replace(/^(?:knapp|gut|ca\.?|etwa|circa|rund|ungefähr)\s+(?=[\d½¼¾])/i, '');
+    // Doppelte Angaben: „200 g / 7 oz Mehl“, „250 ml (1 cup) Milch“
+    l = l.replace(/^([\d.,\/½¼¾\s-]+\s*[a-zäöü.]{0,8})\s*(?:\/|\()\s*[\d.,\/½¼¾\s]+\s*(?:oz|ounces?|cups?|lbs?|pounds?|tbsp|tsp|fl\.? ?oz)\.?\)?\s*/i, '$1 ');
+    return l;
   }
 
   function tidyName(n) {
     return n
       .replace(/\((n|en|e|s|er|nen)\)/gi, '')            // Chefkoch-Stil: „Zwiebel(n)“
       .replace(/^(von|vom|of)\s+/i, '')
-      .replace(/\s*,\s*$/, '')
+      .replace(/\s*[,:;]\s*$/, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -144,11 +181,33 @@ window.EasyKitchen = window.EasyKitchen || {};
   /** Eine Zutatenzeile zerlegen → { name, amount, unit } oder null. */
   function parseIngredient(line) {
     let l = cleanLine(line);
+    if (STEP_MARK.test(l)) return null;                      // „Schritt 1“ ist keine Zutat
     // „Mirin - Alternativ trockener Weißwein …“ / „Hähnchenbrust – oder Schenkel“ → „Mirin (alternativ …)“
     l = l.replace(/\s[-–]\s((?:alternativ|oder|bzw\.?|z\.\s?b\.)\b.*)$/i, (m, alt) => ` (${alt.charAt(0).toLowerCase() + alt.slice(1)})`);
     if (l.length > 110) l = l.slice(0, 110).replace(/\s\S*$/, '');
     if (!l || l.length > 120) return null;
     l = l.replace(/^(nach bedarf|nach belieben|nach geschmack|etwas|evtl\.?|optional)\s+/i, m => (m.trim() + ' ')).replace(/^(nach bedarf|nach belieben|nach geschmack)\s+(.+)$/i, '$2');
+    l = normalizeQty(l);
+    // Menge in Klammern oder hinter Doppelpunkt: „Mehl (200 g)“, „Mehl: 200 g“, „Mehl – 200 g“
+    const pm = l.match(new RegExp(`^([^\\d(]*?[a-zäöüß][^\\d(]*?)\\s*(?:\\(|:|\\s[-–]\\s)\\s*${QTY}\\s*([a-zäöüß.]{0,14})\\s*\\)?\\s*(.*)$`, 'i'));
+    if (pm) {
+      const u = matchUnit(pm[3]);
+      const amount = parseNumber(pm[2]);
+      if (Number.isFinite(amount) && (u || !pm[3])) {
+        const extra = pm[4].replace(/^[,;\s]+/, '').trim();
+        const name = tidyName(pm[1] + (extra ? ` (${extra.replace(/^\(|\)$/g, '')})` : ''));
+        if (name) return mkIng(name, amount, u);
+      }
+    }
+    // Einheit ohne Zahl: „Prise Salz“, „Bund Petersilie“, „Spritzer Zitronensaft“ → 1
+    const um = l.match(/^([a-zäöüß]+\.?)\s+(.{2,})$/i);
+    if (um) {
+      const u = matchUnit(um[1]);
+      if (u && !['g', 'kg', 'ml', 'l'].includes(u.unit) && !/^(st|ds|pc|pck|pkg)$/i.test(um[1].replace('.', ''))) {
+        const name = tidyName((u.prefix ? u.prefix + ' ' : '') + um[2]);
+        if (name) return mkIng(name, 1, u);
+      }
+    }
     const vague = /\b(etwas|nach belieben|nach geschmack|n\.\s?b\.|evtl\.?|optional|zum bestreuen|zum anbraten|zum garnieren|to taste)\b/gi;
 
     let m = l.match(LEAD_QTY);
@@ -157,27 +216,24 @@ window.EasyKitchen = window.EasyKitchen || {};
       let rest = m[2].trim();
       // Einheit direkt am Zahlwert („200g“) oder als nächstes Wort
       const tok = rest.match(/^([a-zäöüß]+\.?)(?:\s+|$)(.*)$/i);
-      let unit = 'stk', factor = 1, name = rest;
+      let u = null, name = rest;
       if (tok) {
-        const u = matchUnit(tok[1]);
-        if (u) {
-          unit = u.unit; factor = u.factor;
-          name = (u.prefix ? u.prefix + ' ' : '') + tok[2];
-        }
+        u = matchUnit(tok[1]);
+        if (u) name = (u.prefix ? u.prefix + ' ' : '') + tok[2];
       }
+      // „1 Dose (400 g) Kichererbsen“ → „Kichererbsen (400 g)“
+      name = name.replace(/^\(([^)]*)\)\s*(.+)$/, '$2 ($1)');
       name = tidyName(name);
       if (!name) return null;
-      if (/^knoblauchzehen?$/i.test(name) && unit === 'stk') { name = 'Knoblauch'; unit = 'zehe'; }
-      return { name, amount: Number.isFinite(amount) ? Number((amount * factor).toFixed(2)) : 0, unit };
+      if (/^knoblauchzehen?$/i.test(name) && !u) { name = 'Knoblauch'; u = { unit: 'zehe', factor: 1 }; }
+      return mkIng(name, amount, u);
     }
 
     m = l.match(TRAIL_QTY);
     if (m) {
       const u = matchUnit(m[3]);
       const amount = parseNumber(m[2]);
-      if (Number.isFinite(amount) && (u || !m[3])) {
-        return { name: tidyName(m[1]), amount: Number((amount * (u ? u.factor : 1)).toFixed(2)), unit: u ? u.unit : 'stk' };
-      }
+      if (Number.isFinite(amount) && (u || !m[3])) return mkIng(tidyName(m[1].replace(/[:\-–]\s*$/, '')), amount, u);
     }
 
     const name = tidyName(l.replace(vague, '').replace(/\(\s*\)/g, ''));
@@ -196,9 +252,88 @@ window.EasyKitchen = window.EasyKitchen || {};
     return l.length <= 60 && (LEAD_QTY.test(l) && /^\s*(ca\.?\s*)?[\d½¼¾⅓⅔⅛]/.test(l)) && !/[.!?]$/.test(l);
   }
 
+  // ---------- Zutat oder Zubereitungsschritt? ----------
+  const VERB_END = /(geben|fügen|rühren|schneiden|hacken|kochen|braten|backen|garen|mischen|mengen|würzen|schmecken|servieren|erhitzen|schälen|waschen|lassen|stellen|legen|teilen|streuen|köcheln|pürieren|schlagen|heben|ziehen|gießen|füllen|formen|rollen|wenden|heizen|weichen|marinieren|reiben|kleinern|dünsten|schwitzen|löschen|reduzieren|quirlen|kneten|streichen|halbieren|würfeln|vierteln|garnieren|richten|kühlen|ruhen|trocknen|tupfen|zupfen|pressen|schmelzen|lassen|spülen|putzen|entkernen|hobeln|raspeln|mixen|dämpfen|frittieren|grillen|toasten|rösten|nehmen|bereiten|decken|setzen|abtropfen|abgießen|einkochen|aufkochen|zerlassen|bestreichen|belegen|platzieren|verrühren|vermengen|vermischen|verquirlen|unterheben|anbraten|anrösten|einrühren|zugeben|dazugeben|hinzugeben|abschmecken|auftauen|aufschlagen|schwenken|ablöschen|umrühren|abkühlen|einfetten|bestäuben|portionieren|dekorieren|anrichten)$/;
+  const IMPERATIVE = /^(gib|gebe|rühre?|schneide|hacke|koche|brate|backe|mische|würze|erhitze|schäle|wasche|lass|lasse|stelle|lege|verteile|streue|gieße|fülle|forme|rolle|wende|heize|reibe|knete|nimm|mach|mache|füge|setze|decke|gare|serviere|vermische|verrühre|vermenge|püriere|schlage|hebe|zerlasse|bestreiche|belege|dünste|lösche|würfle|halbiere|garniere|richte|dann|danach|anschließend|nun|jetzt|zuerst|zunächst|zum schluss|inzwischen|währenddessen|sobald|sofort|alles|alle zutaten|in einer|in einem|im ofen|den ofen|backofen|ofen|die pfanne|eine pfanne|einen topf|den topf)\b/i;
+
+  /** Kochverb im Satz (Phrasen wie „zum Braten“ / „zum Bestreuen“ zählen nicht). */
+  function hasCookVerb(l) {
+    const t = l.toLowerCase().replace(/\b(zum|zur|für das|für die|für den|nach dem|zum)\s+[a-zäöüß]+/g, ' ');
+    if (IMPERATIVE.test(t)) return true;
+    return t.split(/[^a-zäöüß]+/).some(w => w.length >= 5 && VERB_END.test(w));
+  }
+
+  /** Sieht nach Zubereitungsschritt aus (Satz mit Kochverb, lang oder nummeriert). */
+  function isStepLike(l) {
+    if (l.length > 90) return true;
+    const verb = hasCookVerb(l);
+    const sentence = /[.!]$/.test(l) && l.split(/\s+/).length > 4;
+    if (verb && (sentence || l.length > 30 || /[.!]$/.test(l))) return true;
+    if (sentence && l.length > 45) return true;
+    if (verb && D.stripStepNumber(l).numbered && !looksLikeIngredient(l)) return true;
+    return false;
+  }
+
+  /** Sieht nach Zutat aus (Menge + Name, oder kurzer bekannter Lebensmittelname). */
+  function isIngLike(l) {
+    if (isStepLike(l)) return false;
+    if (/[.!?]$/.test(l) && l.split(/\s+/).length > 3) return false;
+    if (looksLikeIngredient(l) && !hasCookVerb(l)) return true;
+    if (l.length > 50 || l.split(/\s+/).length > 7) return false;
+    const p = parseIngredient(l);
+    if (p && p.amount > 0) return true;
+    return !!(ns.Nutrition && ns.Nutrition.lookup(l.replace(/\(.*?\)/g, '')) && l.length <= 40);
+  }
+
+  /**
+   * Mengen und Namen in getrennten Zeilen (Tabellen-Layout in Screenshots/PDFs) zusammenführen:
+   * „200 g“ + „Mehl“ → „200 g Mehl“, „Mehl“ + „200 g“ → „Mehl 200 g“, oder Block aller Mengen + Block aller Namen.
+   */
+  const QTY_ONLY = new RegExp(`^${QTY}\\s*([a-zäöüß.]{0,14})$`, 'i');
+  function isQtyOnly(l) {
+    const m = normalizeQty(l).match(QTY_ONLY);
+    return !!(m && (!m[2] || matchUnit(m[2])));
+  }
+  function mergeSplitQty(lines) {
+    const isQ = isQtyOnly;
+    const isN = l => !isQ(l) && !/^\s*(ca\.?\s*)?[\d½¼¾⅓⅔⅛]/.test(l) && /[a-zäöüß]{2}/i.test(l) && l.length <= 70;
+    if (lines.filter(isQ).length < 1) return lines;
+    // Block-Layout: k Mengen hintereinander, dann genau k Namen
+    for (let i = 0; i < lines.length; i++) {
+      if (!isQ(lines[i])) continue;
+      let k = 0; while (i + k < lines.length && isQ(lines[i + k])) k++;
+      if (k >= 3) {
+        let n = 0; while (i + k + n < lines.length && isN(lines[i + k + n])) n++;
+        if (n === k) {
+          const merged = [];
+          for (let j = 0; j < k; j++) merged.push(lines[i + j] + ' ' + lines[i + k + j]);
+          return lines.slice(0, i).concat(merged, mergeSplitQty(lines.slice(i + 2 * k)));
+        }
+      }
+      break;
+    }
+    // Paarweise: Richtung danach wählen, welche Nachbarschaft häufiger vorkommt
+    let fwd = 0, bwd = 0;
+    for (let i = 0; i + 1 < lines.length; i++) {
+      if (isQ(lines[i]) && isN(lines[i + 1])) fwd++;
+      if (isN(lines[i]) && isQ(lines[i + 1])) bwd++;
+    }
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+      const a = lines[i], b = lines[i + 1];
+      if (b !== undefined && fwd >= bwd && isQ(a) && isN(b)) { out.push(a + ' ' + b); i++; continue; }
+      if (b !== undefined && bwd > fwd && isN(a) && isQ(b)) { out.push(a + ' ' + b); i++; continue; }
+      out.push(a);
+    }
+    return out;
+  }
+
   /** Erkannten Text in einen Rezept-Entwurf umwandeln. */
   function parseRecipeText(text) {
-    const raw = String(text || '').split(/\r?\n/).map(cleanLine);
+    const rawLines = String(text || '').split(/\r?\n/);
+    const raw = rawLines.map(cleanLine);
+    // Aufzählungszeichen merken („– Reiskuchen in Wasser geben“): jede Zeile damit ist ein eigener Schritt
+    const bulleted = new Set(rawLines.filter(r => /^\s*[-–—•·▪●○◦■*>✓✔]\s*\S/.test(r) && !/^\s*-\s*\d/.test(r)).map(cleanLine));
     const lines = raw.filter(l => !isNoise(l));
     const draft = { title: '', time: 0, effort: 1, cost: 1, servings: 0, ingredients: [], steps: '' };
     const svLine = raw.find(l => /^(portionen|personen|portion|servings?)\s*[:\-]?\s*\d+$/i.test(l));
@@ -222,6 +357,12 @@ window.EasyKitchen = window.EasyKitchen || {};
         if (rest) steps.push('§NOTE§' + rest); else steps.push('§NOTE§');
         continue;
       }
+      // Schrittmarke: hier beginnt (spätestens) die Zubereitung – nie eine Zutat
+      if (STEP_MARK.test(l)) {
+        if (section === 'ing') section = 'steps';
+        (section === 'steps' ? steps : section === 'head' ? head : other).push(l);
+        continue;
+      }
       if (ING_HEADER.test(k) && l.length < 60) {
         section = 'ing';
         const sv = l.match(/(\d+)\s*(portion|person|stück|serving)/i) || l.match(/für\s+(\d+)/i);
@@ -239,22 +380,70 @@ window.EasyKitchen = window.EasyKitchen || {};
     // Ohne Überschriften: Zeilen nach Art einsortieren
     if (!ing.length && !steps.length) {
       const pool = head.splice(0);
-      let firstFound = false;
-      pool.forEach(l => {
-        if (looksLikeIngredient(l)) { ing.push(l); firstFound = true; }
-        else if (!firstFound) head.push(l);
-        else if (l.length > 25 || /[.!?]$/.test(l)) steps.push(l);
-        else head.push(l);
+      let firstFound = false, inSteps = false;
+      pool.forEach((l, i) => {
+        if (STEP_MARK.test(l)) { if (firstFound) { steps.push(l); inSteps = true; } return; }
+        if (!firstFound) {
+          // erste Zutat: Mengenzeile, oder Mengen-/Namenspaar über zwei Zeilen
+          if ((looksLikeIngredient(l) || (isQtyOnly(l) && pool[i + 1])) && !isStepLike(l)) { ing.push(l); firstFound = true; }
+          else head.push(l);
+          return;
+        }
+        if (inSteps) { steps.push(l); return; }
+        if (STEP_MARK.test(l) || isStepLike(l)) { steps.push(l); inSteps = true; return; }
+        if (isIngLike(l) || isQtyOnly(l) || (l.length <= 40 && !/[.!?]$/.test(l))) { ing.push(l); return; }
+        steps.push(l); inSteps = true;
       });
+      // Gar keine Mengen (z. B. Notizen: „Zwiebeln / Fleisch / Knoblauch …“, danach Sätze):
+      // kurze Namenszeilen vor dem ersten Satz mit Kochverb sind die Zutaten, ab da beginnt die Zubereitung.
+      if (!firstFound) {
+        const all = head.splice(0);
+        const isStepStart = (l, i) => i > 0 && (isStepLike(l) || (hasCookVerb(l) && (bulleted.has(l) || l.split(/\s+/).length >= 3)));
+        const first = all.findIndex(isStepStart);
+        const nameLine = l => l.length <= 45 && l.split(/\s+/).length <= 6 && !/[.!?]$/.test(l) && !hasCookVerb(l) &&
+          !/\b(min|minuten|std|stunden|portionen?|personen|kcal|schwierigkeit|zubereitungszeit)\b/i.test(l);
+        const before = first > 0 ? all.slice(0, first) : all;
+        // Titel = erste Zeile; danach mindestens 2 Namenszeilen in Folge
+        const names = before.slice(1).filter(nameLine);
+        if (first > 0 && names.length >= 2) {
+          head.push(before[0]);
+          before.slice(1).forEach(l => (nameLine(l) ? ing : head).push(l));
+          steps.push(...all.slice(first));
+        } else head.push(...all);
+      }
     } else if (!steps.length && ing.length) {
       // Zutaten-Überschrift, aber keine Zubereitungs-Überschrift: lange Sätze sind Schritte
       const keep = [];
       let inSteps = false;
       ing.forEach(l => {
-        if (!inSteps && (l.length > 60 || (/[.!?]$/.test(l) && l.split(' ').length > 6))) inSteps = true;
+        if (!inSteps && (isStepLike(l) || l.length > 60 || (/[.!?]$/.test(l) && l.split(' ').length > 6))) inSteps = true;
         (inSteps ? steps : keep).push(l);
       });
       ing.splice(0, ing.length, ...keep);
+    }
+
+    // Beide Abschnitte vorhanden: falsch einsortierte Zeilen umhängen
+    // (Screenshots mit zwei Spalten mischen Zutaten und Schritte oft durcheinander)
+    if (ing.length && steps.length) {
+      const toSteps = ing.filter(l => isStepLike(l) && !looksLikeIngredient(l) && !isQtyOnly(l));
+      if (toSteps.length && toSteps.length < ing.length) {
+        ing.splice(0, ing.length, ...ing.filter(l => !toSteps.includes(l)));
+        steps.unshift(...toSteps);
+      }
+      const haveKeys = new Set(ing.map(l => { const p = parseIngredient(l); return p ? D.norm(p.name) : ''; }));
+      const numbered = steps.filter(l => D.stripStepNumber(l).numbered).length >= 2;
+      for (let i = 0; i < steps.length; i++) {
+        const l = steps[i];
+        if (l.startsWith('§NOTE§') || l.length > 45 || hasCookVerb(l) || /[.!?]$/.test(l)) continue;
+        if (numbered && D.stripStepNumber(l).numbered && !/^\d+\s*(g|kg|ml|l|el|tl|stk|stück|prise|dose|pck|bund)\b/i.test(l)) continue;
+        const prev = steps[i - 1], next = steps[i + 1] || '';
+        if (prev && !/[.!?:]$/.test(prev)) continue;              // mitten in einem umbrochenen Satz
+        if (/^[a-zäöüß]/.test(next)) continue;                    // Satz geht in der nächsten Zeile weiter
+        if (!looksLikeIngredient(l)) continue;
+        const p = parseIngredient(l);
+        if (!p || haveKeys.has(D.norm(p.name))) continue;
+        ing.push(l); steps.splice(i, 1); i--;
+      }
     }
 
     // Metadaten (nur Kopfbereich & beschriftete Zeilen, nicht aus den Schritten)
@@ -330,11 +519,12 @@ window.EasyKitchen = window.EasyKitchen || {};
       }
     }
     // Zutaten (Zwischenüberschriften wie „Für den Teig:“ oder „FÜR DIE SOSSE“ überspringen)
-    draft.ingredients = ing
+    draft.ingredients = mergeSplitQty(ing
+      .filter(l => !STEP_MARK.test(l))
       .filter(l => !(l === l.toUpperCase() && /[A-ZÄÖÜ]{3}/.test(l) && !/^\s*[\d½¼¾]/.test(l)))
       .filter(l => !(/:$/.test(l) && !/\d/.test(l)))
       .filter(l => !/^(für|for)\s+(die|den|das)\s/i.test(l) || /\d/.test(l))
-      .filter(l => !/^(für|for)\s.{2,30}:?$/i.test(l) || /\d/.test(l))
+      .filter(l => !/^(für|for)\s.{2,30}:?$/i.test(l) || /\d/.test(l)))
       .map(parseIngredient)
       .filter(Boolean)
       .filter(i => i.name.length <= 110);
@@ -345,23 +535,32 @@ window.EasyKitchen = window.EasyKitchen || {};
     const flush = () => { if (buf.trim()) out.push(buf.trim()); buf = ''; };
     const stepLines = steps.flatMap(l => D.splitInlineSteps(l));
     const numberedSteps = stepLines.filter(l => !l.startsWith('§NOTE§') && D.stripStepNumber(l).numbered).length >= 2;
+    // Schritte ohne Satzzeichen, Zeile für Zeile (Notizen-Stil): jede Zeile mit Kochverb ist ein eigener Schritt
+    const plain = stepLines.filter(l => !l.startsWith('§NOTE§'));
+    const lineSteps = !numberedSteps && plain.length >= 3 &&
+      plain.filter(l => !/[.!?:]$/.test(l)).length >= plain.length * 0.6 &&
+      plain.filter(l => hasCookVerb(l) || bulleted.has(l)).length >= plain.length * 0.6;
     let inNotes = false;
     stepLines.forEach(l => {
       // Notizen/Tipps: eigener letzter Schritt
       if (l.startsWith('§NOTE§')) { flush(); inNotes = true; const t = l.slice(6).trim(); if (t) buf = t; return; }
       if (inNotes) { buf = buf ? buf + (/[.!?:]$/.test(buf) ? ' ' : ' ') + l : l; return; }
       // reine Schrittmarke in eigener Zeile: „3“, „3.“, „(3)“, „Schritt 3“, „③“, „3️⃣“
-      if (/^(schritt|step)\s*\d+\s*:?$/i.test(l) || /^\(?\d{1,2}[.):]?\)?$/.test(l) || /^[①-⑳]$/.test(l) || /^\d\uFE0F?\u20E3$/.test(l)) { flush(); return; }
+      if (STEP_MARK.test(l) || /^\(?\d{1,2}[.):]?\)?$/.test(l) || /^[①-⑳]$/.test(l) || /^\d\uFE0F?\u20E3$/.test(l)) { flush(); return; }
       const st = D.stripStepNumber(l);
       if (st.numbered) { flush(); buf = st.text; return; }      // nummerierte Zeile = neuer Schritt
       if (!buf) { buf = l; return; }
+      // Aufzählungszeichen = neuer Schritt
+      if (bulleted.has(l) && bulleted.size >= 2) { flush(); buf = l; return; }
+      if (lineSteps && (hasCookVerb(buf) || !/^[a-zäöüß]/.test(l))) { flush(); buf = l; return; }
       // Mit Nummerierung: Zeilen ohne Nummer setzen den Schritt fort (auch über Satzenden/Seitenumbrüche)
       if (!numberedSteps && /[.!?:]$/.test(buf)) { flush(); buf = l; return; }
       if (numberedSteps && /[.!?:]$/.test(buf)) { buf += ' ' + l; return; }
       buf = /-$/.test(buf) ? buf.slice(0, -1) + l : buf + ' ' + l;
     });
     flush();
-    draft.steps = D.cleanSteps(out.join('\n'));
+    // Schritte beginnen mit Großbuchstaben („ein bisschen Zucker …“ → „Ein bisschen Zucker …“)
+    draft.steps = D.cleanSteps(out.map(t => t.replace(/^[a-zäöü]/, c => c.toUpperCase())).join('\n'));
 
     if (!draft.servings) draft.servings = 2;
     if (!draft.prepTime && !draft.cookTime) draft.cookTime = 30;

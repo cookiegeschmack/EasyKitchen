@@ -289,17 +289,20 @@ window.EasyKitchen = window.EasyKitchen || {};
         <button type="button" class="step-btn" data-step="1" aria-label="Mehr">+</button>
         <input type="number" class="input input-num ing-amount-input" min="0" step="any" aria-label="Menge">
         <select class="select ing-unit" aria-label="Einheit">${unitOptions(ing.unit)}</select>
+        <input type="text" class="input ing-unit-custom" placeholder="z. B. Blätter" maxlength="30" aria-label="Eigene Einheit" value="${esc(ing.customUnit || '')}">
       </div>`;
     $('ing-list').appendChild(row);
 
     const range = row.querySelector('.ing-range');
     const num = row.querySelector('.ing-amount-input');
     const unitSel = row.querySelector('.ing-unit');
+    const customInp = row.querySelector('.ing-unit-custom');
 
     const applyUnit = (amount) => {
       const unit = D.UNIT_BY_ID[unitSel.value];
       const noAmount = unit.id === 'ng';
       row.classList.toggle('no-amount', noAmount);
+      row.classList.toggle('has-custom', unit.id === 'custom');
       if (noAmount) return;
       range.step = unit.step;
       range.min = 0;
@@ -339,6 +342,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (v && a && b && a[0] === b[0]) v = Number((v * a[1] / b[1]).toFixed(3));
       lastUnit = unitSel.value;
       applyUnit(v);
+      if (unitSel.value === 'custom') { customInp.focus(); customInp.select(); }
     });
     row.querySelector('.ing-del').addEventListener('click', () => {
       row.remove();
@@ -351,11 +355,18 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   function readIngredients() {
-    return [...$('ing-list').querySelectorAll('.ing-row')].map(row => ({
-      name: row.querySelector('.ing-name-input').value.trim(),
-      amount: Number(row.querySelector('.ing-amount-input').value) || 0,
-      unit: row.querySelector('.ing-unit').value
-    })).filter(i => i.name);
+    return [...$('ing-list').querySelectorAll('.ing-row')].map(row => {
+      const ing = {
+        name: row.querySelector('.ing-name-input').value.trim(),
+        amount: Number(row.querySelector('.ing-amount-input').value) || 0,
+        unit: row.querySelector('.ing-unit').value
+      };
+      if (ing.unit === 'custom') {
+        ing.customUnit = row.querySelector('.ing-unit-custom').value.trim();
+        if (!ing.customUnit) ing.unit = 'stk';     // ohne Namen → Stück
+      }
+      return ing;
+    }).filter(i => i.name);
   }
 
   function setSegment(name, value) {

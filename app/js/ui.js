@@ -65,6 +65,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const unit = ns.Data.UNIT_BY_ID[ing.unit];
     if (!unit || unit.id === 'ng') return 'nach Geschmack';
     if (!ing.amount) return '';
+    if (unit.id === 'custom') return `${fmtNum(ing.amount)} ${ing.customUnit || ''}`.trim();
     return `${fmtNum(ing.amount)} ${ing.amount > 1 && unit.plural ? unit.plural : unit.label}`;
   }
 
@@ -72,7 +73,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function fmtScaled(ing, factor) {
     if (!factor || factor === 1 || !ing.amount || ing.unit === 'ng') return fmtAmount(ing);
     let v = ing.amount * factor;
-    const countable = ['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig', 'handvoll', 'prise', 'msp'];
+    const countable = ['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig', 'handvoll', 'prise', 'msp', 'custom'];
     if (countable.includes(ing.unit)) v = Math.max(0.5, Math.round(v * 2) / 2);
     else if (v >= 100) v = Math.round(v / 5) * 5;
     else if (v >= 10) v = Math.round(v);
