@@ -175,7 +175,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     detailId = id;
     const terms = D.parseTerms(view.query);
     const m = D.matchRecipe(r, terms);
-    const steps = r.steps.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const steps = D.cleanSteps(r.steps).split('\n').filter(Boolean);   // ohne doppelte Nummern
     const pref = D.getServingsPref(id);
 
     $('detail-card').innerHTML = `
@@ -329,7 +329,16 @@ window.EasyKitchen = window.EasyKitchen || {};
       const unit = D.UNIT_BY_ID[unitSel.value];
       setAmount((Number(num.value) || 0) + Number(b.dataset.step) * unit.step);
     }));
-    unitSel.addEventListener('change', () => applyUnit(Number(num.value) || 0));
+    // Einheit wechseln rechnet passende Mengen um (500 ml → 0,5 l, 1,2 kg → 1200 g) statt „500 l“
+    let lastUnit = unitSel.value;
+    const FACT = { g: ['m', 1], kg: ['m', 1000], ml: ['v', 1], l: ['v', 1000] };
+    unitSel.addEventListener('change', () => {
+      let v = Number(num.value) || 0;
+      const a = FACT[lastUnit], b = FACT[unitSel.value];
+      if (v && a && b && a[0] === b[0]) v = Number((v * a[1] / b[1]).toFixed(3));
+      lastUnit = unitSel.value;
+      applyUnit(v);
+    });
     row.querySelector('.ing-del').addEventListener('click', () => {
       row.remove();
       if (!$('ing-list').children.length) addIngredientRow();
@@ -457,6 +466,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       (!title ? $('ed-title') : $('ing-list').querySelector('.ing-name-input')).focus();
       return;
     }
+    const fixed = ingredients.filter(i => D.fixUnitMixup(i).unit !== i.unit);
+    if (fixed.length) UI.toast(`Einheit korrigiert: ${fixed.map(i => `${UI.fmtNum(i.amount)} ${i.unit === 'l' ? 'l → ml' : 'kg → g'} ${i.name}`).join(', ')}`);
     const existing = editor.id ? D.getRecipe(editor.id) : null;
     const saved = D.saveRecipe({
       ...(existing || {}),
@@ -472,7 +483,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       diet: editor.diet,
       servings: Number($('ed-servings').value) || 1,
       ingredients,
-      steps: $('ed-steps').value.trim(),
+      steps: D.cleanSteps($('ed-steps').value),
       watch: $('ed-watch').checked
     });
     UI.closeModal('editor-modal');
@@ -801,6 +812,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     document.querySelectorAll('.segmented[data-seg]').forEach(seg => seg.addEventListener('click', e => {
       const b = e.target.closest('button');
       if (b) setSegment(seg.dataset.seg, /^\d+$/.test(b.dataset.value) ? Number(b.dataset.value) : b.dataset.value);
+      if (b && seg.dataset.seg === 'course' && b.dataset.value === 'dessert') setSegment('taste', 'sweet');
     }));
     document.querySelectorAll('[data-serv]').forEach(b => b.addEventListener('click', () => {
       const inp = $('ed-servings');

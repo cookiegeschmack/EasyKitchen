@@ -71,12 +71,13 @@ window.EasyKitchen = window.EasyKitchen || {};
     const autoTaste = (SWEET_TITLE.test(title) && !savoryStrong) || (hasSugar && !hasSavory) ? 'sweet' : 'savory';
     const taste = r.taste === 'sweet' || r.taste === 'savory' ? r.taste : autoTaste;
 
-    // Haupt- / Nebenspeise (Desserts zählen als Nebenspeise)
+    // Haupt- / Neben- / Nachspeise (Süßes = Nachspeise)
     let autoCourse;
-    if (autoTaste === 'sweet' || (SIDE_TITLE.test(title) && !MAIN_TITLE.test(title))) autoCourse = 'side';
+    if (autoTaste === 'sweet') autoCourse = 'dessert';
+    else if (SIDE_TITLE.test(title) && !MAIN_TITLE.test(title)) autoCourse = 'side';
     else if (!autoVeg || MAIN_TITLE.test(title) || names.some(n => STARCH.test(n)) || kcal >= 350 || protein >= 15) autoCourse = 'main';
     else autoCourse = 'side';
-    const course = r.course === 'main' || r.course === 'side' ? r.course : autoCourse;
+    const course = ['main', 'side', 'dessert'].includes(r.course) ? r.course : autoCourse;
 
     return { veg, autoVeg, highProtein, protein, taste, autoTaste, course, autoCourse };
   }
@@ -93,7 +94,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function preview(r) { return compute(r); }
 
   const LABELS = {
-    course: { main: 'Hauptspeise', side: 'Nebenspeise' },
+    course: { main: 'Hauptspeise', side: 'Nebenspeise', dessert: 'Nachspeise' },
     taste: { savory: 'Salzig', sweet: 'Süß' }
   };
 

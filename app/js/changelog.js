@@ -7,6 +7,17 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.5.0',
+    date: '2026-11-16',
+    title: 'Besserer Import, Nachspeisen & stimmige Nährwerte',
+    items: [
+      '🍰 Neue Art „Nachspeise“: Desserts, Kuchen & Süßes werden automatisch erkannt – mit eigenem Filter.',
+      '🔢 Import & Anzeige: Vorhandene Nummerierungen in den Zubereitungsschritten (1. / 1) / ① / „Schritt 1:“ …) werden erkannt und entfernt – keine doppelten Nummern mehr, auch bei bereits gespeicherten Rezepten.',
+      '📄 Deutlich besserer Import aus PDFs & Screenshots: Kopf- und Fußzeilen, „Hilfsmittel“, Zeitangaben und Seitenumbrüche werden richtig erkannt, fett gedruckte Texte entziffert und Zutaten mit Alternativen übernommen.',
+      '🥛 Stimmige Nährwerte: Verwechslungen wie „500 l Milch“ werden als ml erkannt, beim Wechsel der Einheit (ml ↔ l, g ↔ kg) wird die Menge umgerechnet, und weitere Zutaten (z. B. Kekse/Oreos, Mirin, Nektarinen) sind bekannt.'
+    ]
+  },
+  {
     version: '1.4.2',
     date: '2026-11-16',
     title: 'Flüssigere Updates',

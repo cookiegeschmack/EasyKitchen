@@ -107,6 +107,17 @@ window.EasyKitchen = window.EasyKitchen || {};
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
   }
 
+  /**
+   * Offensichtliche Einheiten-Verwechslung korrigieren: „500 l Milch“ / „250 kg Mehl“
+   * meint in einem Rezept praktisch immer ml bzw. g (z. B. Einheit falsch ausgewählt).
+   */
+  const MIXUP_LIMIT = 30;
+  function fixUnitMixup(ing) {
+    if (ing.unit === 'l' && ing.amount >= MIXUP_LIMIT) return { ...ing, unit: 'ml' };
+    if (ing.unit === 'kg' && ing.amount >= MIXUP_LIMIT) return { ...ing, unit: 'g' };
+    return ing;
+  }
+
   function normalizeRecipe(r) {
     r = r || {};
     // Zeiten: Vorbereitung + Zubereitung = Gesamt. Ältere Rezepte hatten nur „time“ → wird zur Zubereitung.
@@ -124,7 +135,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       cost: clampInt(r.cost, 1, 3, 1),
       servings: clampInt(r.servings, 1, 50, 2),
       ingredients: (Array.isArray(r.ingredients) ? r.ingredients : [])
-        .map(i => ({
+        .map(i => fixUnitMixup({
           name: String((i && i.name) || '').trim(),
           amount: Number.isFinite(Number(i && i.amount)) ? Number(i.amount) : 0,
           unit: UNIT_BY_ID[i && i.unit] ? i.unit : 'g'
@@ -133,7 +144,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       steps: String(r.steps || ''),
       watch: !!r.watch,
       // Eigenschaften für Filter (leer = automatisch erkennen)
-      course: r.course === 'main' || r.course === 'side' ? r.course : null,
+      // vor v1.5 gab es keine „Nachspeise“ – süße Nebenspeisen werden zu Nachspeisen
+      course: r.course === 'side' && r.taste === 'sweet' ? 'dessert' : (['main', 'side', 'dessert'].includes(r.course) ? r.course : null),
       taste: r.taste === 'sweet' || r.taste === 'savory' ? r.taste : null,
       diet: r.diet === 'veg' || r.diet === 'nonveg' ? r.diet : 'auto',
       createdAt: r.createdAt || Date.now(),
@@ -365,6 +377,55 @@ window.EasyKitchen = window.EasyKitchen || {};
     return { score, matchedTerms, matchedIngredients };
   }
 
+  // ---------- Zubereitungsschritte: Nummerierung erkennen & entfernen ----------
+  // Die App nummeriert Schritte selbst – vorhandene Nummern würden doppelt erscheinen („1. 1. …“).
+  const CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+  // „1.“ „1)“ „(1)“ „1:“ „1.)“ „1 –“ – aber nicht „1.5 kg“ oder „2:30 Std“
+  const NUM_PREFIX = /^\(?\d{1,2}\s*(?:\.\)|\.(?!\d)|\)|:(?!\d)|\s[-–—](?=\s))\s*/;
+
+  /** Entfernt Nummerierung am Zeilenanfang. Liefert { text, numbered }. */
+  function stripStepNumber(line) {
+    let l = String(line || '').trim();
+    const before = l;
+    l = l.replace(/^(\d)️?⃣\s*/, '');                                   // 1️⃣
+    l = l.replace(new RegExp('^[' + CIRCLED + ']\\s*'), '');                        // ①
+    l = l.replace(/^(?:schritt|step)\s*\d{1,2}\s*[:.)\-–—]?\s*/i, '');            // „Schritt 3:“
+    l = l.replace(/^\d{1,2}\s*\.\s*schritt\s*[:\-–—]?\s*/i, '');                  // „3. Schritt:“
+    let prev;
+    do { prev = l; l = l.replace(NUM_PREFIX, ''); } while (l !== prev && l);      // „1. 2. 3. Text“
+    return { text: l.trim(), numbered: l !== before };
+  }
+
+  /** Teilt „1. Teig rühren. 2. Backen. 3. …“ (alles in einer Zeile) in einzelne Schritte. */
+  function splitInlineSteps(line) {
+    const re = /(?:^|\s)\(?(\d{1,2})[.)](?!\d)\s+/g;
+    const marks = [];
+    let m;
+    while ((m = re.exec(line))) marks.push({ n: Number(m[1]), at: m.index + (m[0].startsWith(' ') ? 1 : 0) });
+    if (marks.length < 2) return [line];
+    // nur, wenn die Nummern fortlaufend sind (1, 2, 3 …) und zwischen ihnen Text steht
+    for (let i = 1; i < marks.length; i++) if (marks[i].n !== marks[i - 1].n + 1) return [line];
+    const parts = marks.map((mk, i) => line.slice(mk.at, i + 1 < marks.length ? marks[i + 1].at : undefined).trim());
+    if (parts.slice(0, -1).some(p => stripStepNumber(p).text.length < 3)) return [line];   // „1. 2. 3. Text“ → anders behandeln
+    const head = line.slice(0, marks[0].at).trim();
+    return (head ? [head] : []).concat(parts);
+  }
+
+  /** Bereinigt Zubereitungstext: eine Zeile pro Schritt, ohne eigene Nummerierung. */
+  function cleanSteps(text) {
+    let lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    lines = lines.flatMap(splitInlineSteps);
+    // reine Schrittmarken in eigener Zeile („3“, „(3)“, „3.“, „Schritt 3“) weglassen
+    lines = lines.filter(l => !/^(?:(?:schritt|step)\s*)?\(?\d{1,2}[.):]?\)?$/i.test(l) && !/^[①-⑳]$/.test(l) && !/^\d\uFE0F?\u20E3$/.test(l));
+    lines = lines.map(l => stripStepNumber(l.replace(/^[•·▪●○◦■□☐✓✔*>\-–—]+\s*/, '')).text).filter(Boolean);
+    // Nummern ohne Punkt („1 Zwiebel schneiden“, „2 Anbraten“) nur entfernen, wenn ALLE Zeilen
+    // fortlaufend 1, 2, 3 … beginnen – sonst sind es Mengen („2 Eier verquirlen“).
+    if (lines.length >= 2 && lines.every((l, i) => new RegExp('^' + (i + 1) + '\\s+\\S').test(l))) {
+      lines = lines.map((l, i) => l.replace(new RegExp('^' + (i + 1) + '\\s+'), ''));
+    }
+    return lines.join('\n');
+  }
+
   // ---------- Wocheneinkaufsplaner ----------
 
   function normalizePlan(p) {
@@ -427,7 +488,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function subscribe(fn) { listeners.push(fn); }
 
   ns.Data = {
-    norm, stem,
+    norm, stem, fixUnitMixup, cleanSteps, stripStepNumber, splitInlineSteps,
     getServingsPref, setServingsPref,
     getPlan, isPlanned, togglePlan, setPlanServings, clearPlan, isChecked, toggleChecked, clearChecked,
     UNITS, UNIT_BY_ID, EFFORT, COST,
