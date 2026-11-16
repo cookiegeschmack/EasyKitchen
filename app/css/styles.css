@@ -365,6 +365,9 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
 .ing-amount { display: flex; align-items: center; gap: 8px; }
 .ing-amount .ing-range { flex: 1; min-width: 80px; }
 .ing-amount .ing-unit { width: 140px; flex-shrink: 0; }
+.ing-amount .ing-unit-custom { display: none; width: 120px; flex-shrink: 0; }
+.ing-row.has-custom .ing-unit-custom { display: block; }
+.ing-row.has-custom .ing-unit { width: 124px; }
 .ing-row.no-amount .step-btn, .ing-row.no-amount .ing-range, .ing-row.no-amount .ing-amount-input { display: none; }
 .ing-row.no-amount .ing-amount { justify-content: flex-end; }
 .add-ing { align-self: flex-start; color: var(--accent-text); }
@@ -817,4 +820,5 @@ body.drop-target::after {
   .ing-amount [data-step="1"] { order: 2; }
   .ing-amount .ing-amount-input { order: 3; flex: 1; }
   .ing-amount .ing-unit { order: 4; flex: 1; width: auto; }
+  .ing-amount .ing-unit-custom { order: 5; flex: 1; width: auto; }
 }

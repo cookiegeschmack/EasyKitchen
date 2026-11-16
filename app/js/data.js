@@ -30,6 +30,8 @@ window.EasyKitchen = window.EasyKitchen || {};
     { id: 'zweig',  label: 'Zweig', plural: 'Zweige',          max: 10,   step: 1 },
     { id: 'handvoll', label: 'Handvoll',     max: 5,    step: 0.5 },
     { id: 'msp',    label: 'Msp.',           max: 5,    step: 1 },
+    // frei benennbar (z. B. Blätter, Stangen, Tropfen) → Name steht in ingredient.customUnit
+    { id: 'custom', label: 'Eigenes …',      max: 20,   step: 1 },
     { id: 'ng',     label: 'nach Geschmack', max: 0,    step: 0 }
   ];
   const UNIT_BY_ID = Object.fromEntries(UNITS.map(u => [u.id, u]));
@@ -119,6 +121,21 @@ window.EasyKitchen = window.EasyKitchen || {};
     return ing;
   }
 
+  /** Zutat bereinigen; eigene Einheit braucht einen Namen, sonst wird daraus „Stück“. */
+  function normalizeIngredient(i) {
+    i = i || {};
+    const out = {
+      name: String(i.name || '').trim(),
+      amount: Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0,
+      unit: UNIT_BY_ID[i.unit] ? i.unit : 'g'
+    };
+    if (out.unit === 'custom') {
+      const cu = String(i.customUnit || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+      if (cu) out.customUnit = cu; else out.unit = 'stk';
+    }
+    return out;
+  }
+
   function normalizeRecipe(r) {
     r = r || {};
     // Zeiten: Vorbereitung + Zubereitung = Gesamt. Ältere Rezepte hatten nur „time“ → wird zur Zubereitung.
@@ -136,11 +153,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       cost: clampInt(r.cost, 1, 3, 1),
       servings: clampInt(r.servings, 1, 50, 2),
       ingredients: (Array.isArray(r.ingredients) ? r.ingredients : [])
-        .map(i => fixUnitMixup({
-          name: String((i && i.name) || '').trim(),
-          amount: Number.isFinite(Number(i && i.amount)) ? Number(i.amount) : 0,
-          unit: UNIT_BY_ID[i && i.unit] ? i.unit : 'g'
-        }))
+        .map(i => fixUnitMixup(normalizeIngredient(i)))
         .filter(i => i.name),
       steps: String(r.steps || ''),
       watch: !!r.watch,

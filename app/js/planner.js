@@ -106,7 +106,11 @@ window.EasyKitchen = window.EasyKitchen || {};
         if (ing.unit === 'ng' || !amount) { it.toTaste = true; return; }
         const fam = FAMILY[ing.unit];
         if (fam) it[fam[0]] += amount * fam[1];
-        else it.units[ing.unit] = (it.units[ing.unit] || 0) + amount;
+        else {
+          // eigene Einheiten getrennt nach Namen summieren („Blätter“ ≠ „Stangen“)
+          const uk = ing.unit === 'custom' ? 'custom:' + String(ing.customUnit || '').trim() : ing.unit;
+          it.units[uk] = (it.units[uk] || 0) + amount;
+        }
       });
     });
     return [...map.values()];
@@ -114,7 +118,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function roundNice(v, unitId) {
     // Stückige Einheiten auf halbe Einheiten aufrunden, sonst sinnvoll runden
-    if (['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig'].includes(unitId)) return Math.ceil(v * 2) / 2;
+    if (['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig', 'custom'].includes(unitId)) return Math.ceil(v * 2) / 2;
     if (v >= 100) return Math.round(v / 5) * 5;
     if (v >= 10) return Math.round(v);
     return Math.round(v * 10) / 10;
@@ -125,6 +129,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (it.mass) parts.push(it.mass >= 1000 ? `${UI.fmtNum(Math.round(it.mass / 50) / 20)} kg` : `${UI.fmtNum(roundNice(it.mass, 'g'))} g`);
     if (it.vol) parts.push(it.vol >= 1000 ? `${UI.fmtNum(Math.round(it.vol / 50) / 20)} l` : `${UI.fmtNum(roundNice(it.vol, 'ml'))} ml`);
     Object.entries(it.units).forEach(([u, v]) => {
+      if (u.startsWith('custom:')) { parts.push(`${UI.fmtNum(roundNice(v, 'custom'))} ${u.slice(7)}`.trim()); return; }
       const unit = D.UNIT_BY_ID[u];
       const n = roundNice(v, u);
       parts.push(`${UI.fmtNum(n)} ${n > 1 && unit.plural ? unit.plural : unit.label}`);
