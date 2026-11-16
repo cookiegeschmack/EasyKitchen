@@ -7,6 +7,15 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.6.4',
+    date: '2026-11-16',
+    title: 'Zutatensuche mit UND',
+    items: [
+      '🔎 Die Zutatensuche zeigt jetzt nur noch Rezepte, die ALLE eingegebenen Zutaten enthalten – „Tomaten Zwiebeln“ findet nur Rezepte mit beidem. Füllwörter wie „und“ oder „mit“ werden ignoriert.',
+      '💡 Findet die Suche nichts, siehst du, wie viele Rezepte zumindest einen Teil der Zutaten enthalten.'
+    ]
+  },
+  {
     version: '1.6.3',
     date: '2026-11-16',
     title: 'Zuverlässige Updates & Unterschiede auf einen Blick',

@@ -24,7 +24,9 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (view.protein) list = list.filter(x => CL().of(x.r).highProtein);
     if (view.course) list = list.filter(x => CL().of(x.r).course === view.course);
     if (view.taste) list = list.filter(x => CL().of(x.r).taste === view.taste);
-    if (terms.length) list = list.filter(x => x.m.matchedTerms.length > 0);
+    // UND-Suche: jede eingegebene Zutat muss im Rezept vorkommen
+    const partial = terms.length > 1 ? list.filter(x => x.m.matchedTerms.length > 0).length : 0;
+    if (terms.length) list = list.filter(x => x.m.matchedTerms.length === terms.length);
     if (view.time) list = list.filter(x => x.r.time > 0 && x.r.time <= view.time);
     if (view.effort) list = list.filter(x => x.r.effort === view.effort);
     if (view.cost) list = list.filter(x => x.r.cost === view.cost);
@@ -38,7 +40,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       fav: (a, b) => (Number(b.r.watch) - Number(a.r.watch)) || (b.m.score - a.m.score) || byName(a, b)
     };
     list.sort(sorters[view.sort] || sorters.match);
-    return { list, terms };
+    return { list, terms, partial };
   }
 
   function metaChips(r) {
@@ -100,7 +102,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     renderDraftsButton();
     renderDaily();
 
-    const { list, terms } = filteredRecipes();
+    const { list, terms, partial } = filteredRecipes();
     const grid = $('recipe-grid');
     const empty = $('empty-state');
     const filtersActive = !!(view.time || view.effort || view.cost || view.fav || view.veg || view.protein || view.course || view.taste);
@@ -116,7 +118,8 @@ window.EasyKitchen = window.EasyKitchen || {};
     // Ergebnis-Info
     const base = view.fav ? 'unter deinen Favoriten' : 'in deinen Rezepten';
     let info = '';
-    if (terms.length) info = `${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} mit „${terms.join('“, „')}“ ${base}`;
+    const termText = `„${terms.slice(0, -1).join('“, „')}${terms.length > 1 ? '“ und „' : ''}${terms[terms.length - 1] || ''}“`;
+    if (terms.length) info = `${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} mit ${terms.length > 1 ? 'allen Zutaten: ' : ''}${termText} ${base}`;
     else if (filtersActive) info = `${list.length} ${list.length === 1 ? 'Rezept' : 'Rezepte'} ${base}`;
     $('result-info').textContent = list.length || terms.length || filtersActive ? info : '';
 
@@ -139,7 +142,9 @@ window.EasyKitchen = window.EasyKitchen || {};
       empty.innerHTML = `
         <div class="empty-icon">🔍</div>
         <h2>Nichts gefunden</h2>
-        <p>Kein Rezept passt zu deiner Suche bzw. deinen Filtern.</p>
+        <p>${terms.length > 1
+          ? `Kein Rezept enthält alle gesuchten Zutaten (${esc(termText)}).${partial ? ` ${partial} ${partial === 1 ? 'Rezept enthält' : 'Rezepte enthalten'} zumindest einen Teil davon – entferne eine Zutat aus der Suche, um ${partial === 1 ? 'es' : 'sie'} zu sehen.` : ''}`
+          : 'Kein Rezept passt zu deiner Suche bzw. deinen Filtern.'}</p>
         <button type="button" class="btn btn-secondary" data-act="reset">Suche &amp; Filter zurücksetzen</button>`;
     }
   }
