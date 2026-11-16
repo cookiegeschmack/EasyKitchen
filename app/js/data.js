@@ -296,12 +296,15 @@ window.EasyKitchen = window.EasyKitchen || {};
     return w;
   }
 
+  // Füllwörter in der Suche („Tomaten und Zwiebeln“) sind keine Zutaten
+  const SEARCH_STOPWORDS = new Set(['und', 'oder', 'mit', 'ohne', 'sowie', 'plus', 'auch', 'aber', 'die', 'der', 'das', 'den', 'dem',
+    'ein', 'eine', 'einen', 'etwas', 'and', 'or', 'with']);
   function parseTerms(query) {
     const seen = new Set();
     return String(query || '')
-      .split(/[,;\s]+/)
+      .split(/[,;&+\s]+/)
       .map(norm)
-      .filter(t => t.length >= 2 && !seen.has(t) && seen.add(t));
+      .filter(t => t.length >= 2 && !SEARCH_STOPWORDS.has(t) && !seen.has(t) && seen.add(t));
   }
 
   // Endungen, die aus einer Zutat ein eigenständiges Produkt machen:

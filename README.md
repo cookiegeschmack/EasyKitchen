@@ -30,7 +30,7 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 
 - **Rezepte anlegen**: Name, Zutatenliste (Pflicht), Zubereitung, Kochzeit, Aufwand, Kosten, Portionen und optional ein Foto (auswählen, hineinziehen oder einfügen).
 - **Mengen bequem eingeben**: Jede Zutat hat ein Zahlenfeld, einen Regler und −/+ Knöpfe. Die Schrittweite passt sich der gewählten Einheit an (g, kg, ml, l, Stück, EL, TL, Prise, Bund, Dose, Packung, Zehe, Tasse, nach Geschmack).
-- **Reste-Suche**: Gib ein, was du noch hast (z. B. `Rindfleisch, Paprika`). Es erscheinen alle Rezepte, in denen mindestens eine dieser Zutaten vorkommt – die passendsten zuerst, mit Anzeige „✓ 2 von 6 Zutaten da“.
+- **Reste-Suche**: Gib ein, was du noch hast (z. B. `Rindfleisch, Paprika`). Es erscheinen nur Rezepte, die alle eingegebenen Zutaten enthalten (UND-Suche, Füllwörter wie „und“ werden ignoriert) – mit Anzeige „✓ 2 von 6 Zutaten da“.
 - **Zeiten**: Vorbereitung und Zubereitung getrennt, die Gesamtzeit wird berechnet und als Tabelle angezeigt (App & PDF).
 - **Nährwerte (Richtwerte)**: Kalorien, Eiweiß, Kohlenhydrate und Fett pro Portion werden offline aus den Zutaten geschätzt (`app/js/nutrition.js`, ~180 gängige Zutaten) – als Balkendiagramm unten am Rezept und live im Editor, in der PDF kurz ganz unten. Unbekannte Zutaten werden als „nicht berücksichtigt“ ausgewiesen.
 - **Portionsregler**: In jedem Rezept die Portionen per Regler ändern – Mengen werden umgerechnet, die Wahl wird pro Rezept gemerkt (das Rezept bleibt unverändert).
