@@ -7,6 +7,15 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.4.1',
+    date: '2026-11-16',
+    title: 'Update-Hinweis live & keine doppelten Rezepte',
+    items: [
+      '🔔 Neue Versionen erscheinen jetzt auch während der Nutzung oben als Hinweis (mit LED) – ohne Neustart. Ein Klick darauf startet das Update.',
+      '📥 Beim Importieren werden bereits vorhandene Rezepte (gleicher Name oder schon importiert) automatisch übersprungen – es kommen nur die neuen dazu.'
+    ]
+  },
+  {
     version: '1.4.0',
     date: '2026-11-16',
     title: 'Neue Filter, Portionsregler & genauere Suche',

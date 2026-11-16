@@ -713,6 +713,16 @@ body.drop-target::after {
 .ing-table.scaled .ing-amt { color: var(--accent-text); font-weight: 600; }
 #ed-veg-hint { font-weight: 400; }
 
+.import-dupes { margin-top: 14px; }
+.import-dupes summary { cursor: pointer; font-size: 13px; color: var(--text-2); font-weight: 600; margin-bottom: 8px; }
+.import-list li.is-dupe { opacity: .55; }
+.import-all-dupes { margin: 0 0 4px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--tone-mint); color: var(--tone-mint-t); font-weight: 600; font-size: 14px; }
+
+.upd-fallback { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+#update-card { max-width: 580px; }
+#update-card .modal-foot.spread { flex-wrap: wrap; row-gap: 8px; }
+#update-card .modal-foot .btn-row { flex-wrap: nowrap; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; bottom: 26px; z-index: 300;

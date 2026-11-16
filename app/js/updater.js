@@ -1,8 +1,9 @@
 /*
  * EasyKitchen – 1-Klick-In-App-Updater (übernommen von FinPilot).
  * Prüft beim Start das neueste GitHub-Release von cookiegeschmack/EasyKitchen.
- * macOS: Download & Installation nativ (gh CLI / Token / lokale DMG), danach Neustart.
- * Browser/Windows: Hinweis + Link zur Release-Seite.
+ * macOS: Download & Installation direkt in der App (öffentliches Release, kein Konto nötig), danach Neustart.
+ * Ersatzweg: neueste DMG direkt herunterladen und mit einem Klick installieren – nie über die GitHub-Seite.
+ * Browser/Windows: direkter Download.
  */
 window.EasyKitchen = window.EasyKitchen || {};
 (function (ns) {
@@ -11,12 +12,14 @@ window.EasyKitchen = window.EasyKitchen || {};
   const APP_FALLBACK_VERSION = '1.4.0';
   const REPO = 'cookiegeschmack/EasyKitchen';
   const RELEASE_PAGE = `https://github.com/${REPO}/releases/latest`;
+  const DIRECT_DMG = `https://github.com/${REPO}/releases/latest/download/EasyKitchen.dmg`;   // lädt die Datei sofort
   const SKIPPED_VER_KEY = 'easykitchen_skipped_update_version';
   const TOKEN_KEY = 'easykitchen_github_release_token';
   const NOTIFIED_KEY = 'easykitchen_update_notified_version';
-  const RECHECK_MS = 6 * 60 * 60 * 1000;   // bei laufender App alle 6 Stunden
+  const LIVE_MS = 10 * 60 * 1000;          // während die App läuft: alle 10 Minuten auf neue Releases prüfen
+  const FOCUS_MS = 5 * 60 * 1000;          // beim Zurückkehren ins Fenster, wenn die letzte Prüfung > 5 Min her ist
   const RETRY_MS = 5 * 60 * 1000;          // nach fehlgeschlagener Prüfung in 5 Minuten erneut
-  const auto = { lastCheck: 0, lastOk: false, pending: false, retryTimer: null, started: false };
+  const auto = { lastCheck: 0, lastOk: false, pending: false, retryTimer: null, started: false, reason: '' };
 
   const UI = ns.UI;
   const $ = UI.$;
@@ -116,7 +119,8 @@ window.EasyKitchen = window.EasyKitchen || {};
         $('topbar-version').classList.add('outdated');
       }
       if (res.manual) openModal(res);
-      else maybeAnnounce(res, skipped);
+      else if (auto.reason === 'start') maybeAnnounce(res, skipped);   // beim Start: Dialog einmal pro Version
+      else announceQuietly(res, skipped);                              // während der Nutzung: nur Hinweis oben
     } else if (res.ok) {
       if (pill) pill.hidden = true;
       $('topbar-version').classList.remove('outdated');
@@ -124,7 +128,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       setStatus(`Du hast die aktuellste Version (v${cur}).`);
       if (res.manual) UI.toast(`EasyKitchen ist auf dem neuesten Stand (v${cur}) ✓`);
     } else {
-      setStatus('Update-Server nicht erreichbar (privates Repo: gh CLI anmelden oder DMG manuell wählen).');
+      setStatus('Update-Server gerade nicht erreichbar (z. B. offline) – EasyKitchen versucht es automatisch erneut.');
       if (res.manual) openModal(res);
     }
   }
@@ -137,6 +141,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (auto.pending && Date.now() - auto.lastCheck < 30000) return;   // läuft noch (max. 30 s)
     if (!isOnline()) return;               // ohne Internet: warten, bis „online“ gemeldet wird
     clearTimeout(auto.retryTimer);
+    auto.reason = reason;
     check({ manual: false, reason });
   }
 
@@ -158,6 +163,16 @@ window.EasyKitchen = window.EasyKitchen || {};
     show();
   }
 
+  /** Während der Nutzung: kein Dialog, nur der Hinweis oben (LED) und einmalig eine kurze Meldung. */
+  function announceQuietly(res, skipped) {
+    if (skipped === res.latestVersion) return;
+    let notified = '';
+    try { notified = localStorage.getItem(NOTIFIED_KEY) || ''; } catch (_) {}
+    if (notified === res.latestVersion) return;
+    try { localStorage.setItem(NOTIFIED_KEY, res.latestVersion); } catch (_) {}
+    UI.toast(`✨ Update v${res.latestVersion} ist verfügbar – oben auf den Hinweis klicken`);
+  }
+
   function startAutoCheck() {
     if (auto.started) return;
     auto.started = true;
@@ -167,12 +182,14 @@ window.EasyKitchen = window.EasyKitchen || {};
       else setStatus('Keine Internetverbindung – Update-Prüfung erfolgt automatisch, sobald du online bist.');
     }, 1200);
     // 2. Internet ist (wieder) da → prüfen, falls noch nicht erfolgreich geprüft
-    window.addEventListener('online', () => { if (!auto.lastOk || Date.now() - auto.lastCheck > RECHECK_MS) autoCheck('online'); });
+    window.addEventListener('online', () => { if (!auto.lastOk || Date.now() - auto.lastCheck > FOCUS_MS) autoCheck('online'); });
     // 3. Zurück im Fenster nach längerer Zeit / regelmäßig während die App läuft
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && Date.now() - auto.lastCheck > RECHECK_MS) autoCheck('focus');
+      if (!document.hidden && Date.now() - auto.lastCheck > FOCUS_MS) autoCheck('focus');
     });
-    setInterval(() => { if (Date.now() - auto.lastCheck >= RECHECK_MS) autoCheck('interval'); }, 15 * 60 * 1000);
+    // 4. Regelmäßig, solange die App läuft → neues Release erscheint oben, ohne Neustart
+    setInterval(() => { if (Date.now() - auto.lastCheck >= LIVE_MS - 1000) autoCheck('interval'); }, 60 * 1000);
+    window.addEventListener('focus', () => { if (Date.now() - auto.lastCheck > FOCUS_MS) autoCheck('focus'); });
   }
 
   function onProgress(prog) {
@@ -182,6 +199,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (prog.stage === 'error') {
       if (txt) { txt.textContent = '⚠︎ ' + (prog.message || 'Update fehlgeschlagen.'); txt.classList.add('error'); }
       if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
+      const fb = $('upd-fallback'); if (fb) fb.hidden = false;
       return;
     }
     const p = Math.max(0, Math.min(100, Number(prog.percent || 0)));
@@ -194,7 +212,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function installLocal(useDownloads) {
     const h = native('nativeInstallLocalDMG');
     if (h) h.postMessage({ useDownloads: !!useDownloads });
-    else openExternal(RELEASE_PAGE);
+    else openExternal(DIRECT_DMG);
   }
 
   function openModal(info) {
@@ -210,6 +228,10 @@ window.EasyKitchen = window.EasyKitchen || {};
       <div class="upd-progress" id="upd-progress" hidden>
         <div class="upd-progress-row"><span id="upd-text">Starte Download…</span><span id="upd-pct">0 %</span></div>
         <div class="upd-bar"><div class="upd-fill" id="upd-fill"></div></div>
+      </div>
+      <div class="upd-fallback" id="upd-fallback" hidden>
+        <button type="button" class="btn btn-secondary" data-act="direct-download">⤓ Direkt herunterladen</button>
+        ${isNative ? '<button type="button" class="btn btn-secondary" data-act="downloads-dmg">Heruntergeladene DMG installieren</button>' : ''}
       </div>`;
 
     if (ready) {
@@ -227,7 +249,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           <button type="button" class="btn btn-ghost" data-act="skip">Version überspringen</button>
           <div class="btn-row">
             <button type="button" class="btn btn-ghost" data-close="update-modal">Später</button>
-            <button type="button" class="btn btn-primary" id="upd-start">${isNative ? 'Jetzt aktualisieren & neu starten' : 'Download-Seite öffnen'}</button>
+            <button type="button" class="btn btn-primary" id="upd-start">${isNative ? 'Jetzt aktualisieren & neu starten' : 'Neue Version herunterladen'}</button>
           </div>
         </div>
         ${isNative ? '<div class="modal-subfoot"><button type="button" class="link-btn" data-act="local-dmg">Bereits heruntergeladene EasyKitchen.dmg auswählen</button></div>' : ''}`;
@@ -238,12 +260,12 @@ window.EasyKitchen = window.EasyKitchen || {};
           <button type="button" class="icon-btn" data-close="update-modal" aria-label="Schließen">✕</button>
         </div>
         <div class="modal-body">
-          <p>GitHub konnte nicht direkt abgefragt werden (privates Repository und keine angemeldete <code>gh</code> CLI). Du kannst trotzdem in zwei Schritten aktualisieren:</p>
+          <p>Die Update-Prüfung hat gerade nicht geklappt – meist ist kurz keine Internetverbindung da. Du kannst es erneut versuchen oder die neueste Version direkt laden:</p>
           ${progress}
           <div class="stack">
-            <button type="button" class="btn btn-secondary" data-act="open-github">1. Release-Seite im Browser öffnen &amp; DMG laden</button>
-            ${info.hasDownloadsDMG ? '<button type="button" class="btn btn-primary" data-act="downloads-dmg">2. Gefundene ~/Downloads/EasyKitchen.dmg installieren</button>' : ''}
-            ${isNative ? `<button type="button" class="btn ${info.hasDownloadsDMG ? 'btn-secondary' : 'btn-primary'}" data-act="local-dmg">2. Heruntergeladene EasyKitchen.dmg auswählen &amp; installieren</button>` : ''}
+            <button type="button" class="btn btn-primary" data-act="recheck">↻ Erneut nach Updates suchen</button>
+            <button type="button" class="btn btn-secondary" data-act="direct-download">⤓ Neueste Version direkt herunterladen</button>
+            ${isNative ? '<button type="button" class="btn btn-secondary" data-act="downloads-dmg">Danach: heruntergeladene EasyKitchen.dmg installieren</button>' : ''}
           </div>
         </div>
         <div class="modal-foot"><button type="button" class="btn btn-ghost" data-close="update-modal">Schließen</button></div>`;
@@ -257,7 +279,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           onProgress({ stage: 'downloading', percent: 5, message: 'Starte Update…' });
           h.postMessage({ tagName: info.tagName || '', assetApiUrl: info.assetApiUrl || '', assetBrowserUrl: info.assetBrowserUrl || '', token: savedToken() });
         } else {
-          openExternal(info.htmlUrl || RELEASE_PAGE);
+          openExternal(info.assetBrowserUrl || DIRECT_DMG);   // Browser/Windows: Datei direkt laden
         }
       });
     }
@@ -270,7 +292,8 @@ window.EasyKitchen = window.EasyKitchen || {};
         UI.closeModal('update-modal');
       } else if (act === 'local-dmg') installLocal(false);
       else if (act === 'downloads-dmg') installLocal(true);
-      else if (act === 'open-github') openExternal(info.releasePageUrl || info.htmlUrl || RELEASE_PAGE);
+      else if (act === 'direct-download') { openExternal(info.assetBrowserUrl || DIRECT_DMG); UI.toast('Download gestartet – danach „Heruntergeladene DMG installieren“'); }
+      else if (act === 'recheck') { UI.closeModal('update-modal'); check({ manual: true }); }
     }));
     UI.openModal('update-modal');
   }

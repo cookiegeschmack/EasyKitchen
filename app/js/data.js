@@ -203,6 +203,26 @@ window.EasyKitchen = window.EasyKitchen || {};
     return obj.recipes.map(normalizeRecipe).filter(r => r.title && r.ingredients.length);
   }
 
+  /** Vergleichsschlüssel für den Namen: Groß/Klein, Umlaute, Satzzeichen & Leerzeichen egal. */
+  function titleKey(t) { return norm(t).replace(/\s+/g, ''); }
+
+  /**
+   * Teilt eine Import-Liste in neue und schon vorhandene Rezepte.
+   * Doppelt = gleiche Kennung ODER gleicher Name (auch doppelt innerhalb der Datei).
+   */
+  function splitImport(list) {
+    const ids = new Set(state.recipes.map(r => r.id));
+    const titles = new Set(state.recipes.map(r => titleKey(r.title)));
+    const fresh = [], dupes = [];
+    list.forEach(r => {
+      const tk = titleKey(r.title);
+      if (ids.has(r.id) || titles.has(tk)) { dupes.push(r); return; }
+      fresh.push(r);
+      ids.add(r.id); titles.add(tk);
+    });
+    return { fresh, dupes };
+  }
+
   /** Übernimmt Rezepte: bekannte IDs werden aktualisiert (Watchlist bleibt), neue ergänzt. */
   function importRecipes(list) {
     let added = 0, updated = 0;
@@ -412,6 +432,6 @@ window.EasyKitchen = window.EasyKitchen || {};
     getPlan, isPlanned, togglePlan, setPlanServings, clearPlan, isChecked, toggleChecked, clearChecked,
     UNITS, UNIT_BY_ID, EFFORT, COST,
     SHARE_FORMAT, init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,
-    exportJSON, importJSON, exportShare, parseShare, importRecipes, getSetting, setSetting, parseTerms, matchRecipe, subscribe, hasNativeStorage, uid
+    exportJSON, importJSON, exportShare, parseShare, importRecipes, splitImport, getSetting, setSetting, parseTerms, matchRecipe, subscribe, hasNativeStorage, uid
   };
 })(window.EasyKitchen);
