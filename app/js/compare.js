@@ -104,7 +104,8 @@ window.EasyKitchen = window.EasyKitchen || {};
   // ---------- Darstellung ----------
   let diffCount = 0;
 
-  function cell(html, cls) { return `<td class="${cls || ''}">${html}</td>`; }
+  // keep = Rezeptinhalt (Titel, Zutaten, Schritte) → nicht übersetzen
+  function cell(html, cls, keep) { return `<td class="${cls || ''}"${keep ? ' translate="no"' : ''}>${html}</td>`; }
   const EMPTY = '<span class="cmp-none">—</span>';
 
   /** Zeile mit einfachem Wert (Text) – unterschiedliche Werte werden markiert. */
@@ -132,14 +133,14 @@ window.EasyKitchen = window.EasyKitchen || {};
     const titleSame = D.norm(ra.title) === D.norm(rb.title) && ra.title.trim() === rb.title.trim();
     if (!titleSame) diffCount++;
     html += `<tr class="${titleSame ? 'cmp-same' : 'cmp-row-diff'}"><th scope="row">Titel</th>
-      ${cell(tw[0], titleSame ? '' : 'cmp-diff')}${cell(tw[1], titleSame ? '' : 'cmp-diff')}</tr>`;
+      ${cell(tw[0], titleSame ? '' : 'cmp-diff', 1)}${cell(tw[1], titleSame ? '' : 'cmp-diff', 1)}</tr>`;
     const photoSame = (ra.image || '') === (rb.image || '');
     if (!photoSame) diffCount++;
     html += `<tr class="${photoSame ? 'cmp-same' : 'cmp-row-diff'}"><th scope="row">Foto</th>
       ${cell(photo(ra), photoSame ? '' : 'cmp-diff')}${cell(photo(rb), photoSame ? '' : 'cmp-diff')}</tr>`;
     html += valueRow('Portionen', ra.servings || '', rb.servings || '');
-    html += valueRow('Vorbereitung', UI.fmtTime(ra.prepTime || 0), UI.fmtTime(rb.prepTime || 0));
-    html += valueRow('Zubereitung', UI.fmtTime(ra.cookTime || 0), UI.fmtTime(rb.cookTime || 0));
+    html += valueRow('Vorbereitungszeit', UI.fmtTime(ra.prepTime || 0), UI.fmtTime(rb.prepTime || 0));
+    html += valueRow('Zubereitungszeit', UI.fmtTime(ra.cookTime || 0), UI.fmtTime(rb.cookTime || 0));
     html += valueRow('Aufwand', D.EFFORT[ra.effort] || '', D.EFFORT[rb.effort] || '');
     html += valueRow('Kosten', D.COST[ra.cost] || '', D.COST[rb.cost] || '');
     html += valueRow('Art', L.course[ta.course] || '', L.course[tb.course] || '');
@@ -164,13 +165,13 @@ window.EasyKitchen = window.EasyKitchen || {};
         const amt = x => esc(amountText(x));
         const side = (name, ing) => `<span class="cmp-amt">${amtSame ? amt(ing) : `<mark>${amt(ing) || '–'}</mark>`}</span> ${name}`;
         html += `<tr class="${same ? 'cmp-same' : 'cmp-row-diff'}"><th scope="row"></th>
-          ${cell(side(nd[0], p.a), same ? '' : 'cmp-diff')}${cell(side(nd[1], p.b), same ? '' : 'cmp-diff')}</tr>`;
+          ${cell(side(nd[0], p.a), same ? '' : 'cmp-diff', 1)}${cell(side(nd[1], p.b), same ? '' : 'cmp-diff', 1)}</tr>`;
       } else {
         diffCount++;
         const ing = p.a || p.b;
         const txt = `<span class="cmp-amt">${esc(amountText(ing))}</span> ${esc(ing.name)}`;
         html += `<tr class="cmp-row-diff"><th scope="row"></th>
-          ${p.a ? cell(txt, 'cmp-add') : cell(EMPTY, 'cmp-gap')}${p.b ? cell(txt, 'cmp-old') : cell(EMPTY, 'cmp-gap')}</tr>`;
+          ${p.a ? cell(txt, 'cmp-add', 1) : cell(EMPTY, 'cmp-gap')}${p.b ? cell(txt, 'cmp-old', 1) : cell(EMPTY, 'cmp-gap')}</tr>`;
       }
     });
     if (!ia.length && !ib.length) html += `<tr class="cmp-same"><th></th><td colspan="2">${EMPTY}</td></tr>`;
@@ -182,15 +183,15 @@ window.EasyKitchen = window.EasyKitchen || {};
     pairSteps(sa, sb).forEach(p => {
       const label = p.a !== undefined ? `${++na}.` : '';
       if (p.same) {
-        html += `<tr class="cmp-same"><th scope="row">${label}</th>${cell(esc(p.a))}${cell(esc(p.b))}</tr>`;
+        html += `<tr class="cmp-same"><th scope="row">${label}</th>${cell(esc(p.a), '', 1)}${cell(esc(p.b), '', 1)}</tr>`;
       } else if (p.a !== undefined && p.b !== undefined) {
         diffCount++;
         const w = wordDiff(p.a, p.b);
-        html += `<tr class="cmp-row-diff"><th scope="row">${label}</th>${cell(w[0], 'cmp-diff')}${cell(w[1], 'cmp-diff')}</tr>`;
+        html += `<tr class="cmp-row-diff"><th scope="row">${label}</th>${cell(w[0], 'cmp-diff', 1)}${cell(w[1], 'cmp-diff', 1)}</tr>`;
       } else {
         diffCount++;
         html += `<tr class="cmp-row-diff"><th scope="row">${label}</th>
-          ${p.a !== undefined ? cell(esc(p.a), 'cmp-add') : cell(EMPTY, 'cmp-gap')}${p.b !== undefined ? cell(esc(p.b), 'cmp-old') : cell(EMPTY, 'cmp-gap')}</tr>`;
+          ${p.a !== undefined ? cell(esc(p.a), 'cmp-add', 1) : cell(EMPTY, 'cmp-gap')}${p.b !== undefined ? cell(esc(p.b), 'cmp-old', 1) : cell(EMPTY, 'cmp-gap')}</tr>`;
       }
     });
     if (!sa.length && !sb.length) html += `<tr class="cmp-same"><th></th><td colspan="2">${EMPTY}</td></tr>`;
@@ -236,7 +237,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         </div>
         <div class="cmp-import">
           <label for="cmp-name">Trotzdem übernehmen – Name des Rezepts</label>
-          <input type="text" id="cmp-name" class="input" maxlength="120" value="${esc(imported.title)}">
+          <input type="text" id="cmp-name" class="input" maxlength="120" value="${esc(imported.title)}" translate="no">
           <p class="muted">Du kannst den Namen ändern oder gleich lassen.
             ${opts.inFile ? 'Das andere Rezept der Datei bleibt unverändert.'
               : '„Als neues Rezept importieren“ behält beide Fassungen. „Vorhandenes ersetzen“ überschreibt das vorhandene Rezept mit der importierten Fassung – Favorit und Wochenplan bleiben erhalten.'}</p>
@@ -266,7 +267,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const rep = $('cmp-replace-btn');
     if (rep) rep.addEventListener('click', () => {
       const name = $('cmp-name').value.trim() || imported.title;
-      if (!confirm(`„${existing.title}“ durch die importierte Fassung ersetzen?\n\nDie bisherige Fassung (Zutaten, Schritte, Foto …) wird überschrieben.`)) return;
+      if (!confirm(ns.I18n.tr(`„${existing.title}“ durch die importierte Fassung ersetzen?\n\nDie bisherige Fassung (Zutaten, Schritte, Foto …) wird überschrieben.`))) return;
       const rec = { ...imported, id: existing.id, title: name, watch: !!existing.watch,
         image: imported.image || existing.image || '', createdAt: existing.createdAt || Date.now(), updatedAt: Date.now() };
       D.importRecipes([rec]);

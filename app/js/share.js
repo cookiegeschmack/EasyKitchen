@@ -70,10 +70,10 @@ window.EasyKitchen = window.EasyKitchen || {};
           <div class="brand-right">Rezept · ${esc(dateStr)}</div>
         </div>
         ${r.image ? `<div class="photo"><img src="${r.image}" alt=""></div>` : ''}
-        <h1>${esc(r.title)}</h1>
+        <h1 translate="no">${esc(r.title)}</h1>
         <table class="times"><tr>
-          <td><span>Vorbereitung</span><strong>${r.prepTime ? esc(UI.fmtTime(r.prepTime)) : '–'}</strong></td>
-          <td><span>Zubereitung</span><strong>${r.cookTime ? esc(UI.fmtTime(r.cookTime)) : '–'}</strong></td>
+          <td><span data-en="Prep time">Vorbereitung</span><strong>${r.prepTime ? esc(UI.fmtTime(r.prepTime)) : '–'}</strong></td>
+          <td><span data-en="Cook time">Zubereitung</span><strong>${r.cookTime ? esc(UI.fmtTime(r.cookTime)) : '–'}</strong></td>
           <td><span>Gesamtzeit</span><strong>${r.time ? esc(UI.fmtTime(r.time)) : '–'}</strong></td>
         </tr></table>
         <div class="meta">
@@ -88,12 +88,12 @@ window.EasyKitchen = window.EasyKitchen || {};
           <div>
             <h2>Zutaten</h2>
             <ul class="ing">
-              ${r.ingredients.map(i => `<li><span class="amt">${esc(UI.fmtAmount(i))}</span><span>${esc(i.name)}</span></li>`).join('')}
+              ${r.ingredients.map(i => `<li><span class="amt">${esc(UI.fmtAmount(i))}</span><span translate="no">${esc(i.name)}</span></li>`).join('')}
             </ul>
           </div>
           <div>
             <h2>Zubereitung</h2>
-            ${steps.length ? `<ol class="steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : '<p class="muted">Keine Zubereitung hinterlegt.</p>'}
+            ${steps.length ? `<ol class="steps" translate="no">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : '<p class="muted">Keine Zubereitung hinterlegt.</p>'}
           </div>
         </div>
         ${ns.Nutrition.renderPrintTable(r)}
@@ -102,12 +102,14 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   function buildPrintHTML(recipes, iconSrc) {
-    const dateStr = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const title = recipes.length === 1 ? recipes[0].title : `EasyKitchen – ${recipes.length} Rezepte`;
-    return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>${esc(title)}</title>
+    const dateStr = new Date().toLocaleDateString(ns.I18n ? ns.I18n.locale() : 'de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const I = ns.I18n;
+    const title = recipes.length === 1 ? recipes[0].title : (I ? I.tr(`EasyKitchen – ${recipes.length} Rezepte`) : `EasyKitchen – ${recipes.length} Rezepte`);
+    const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>${esc(title)}</title>
       <style>${PRINT_CSS}</style></head><body>
       ${recipes.map(r => recipeSection(r, iconSrc, dateStr)).join('')}
       </body></html>`;
+    return I ? I.translateHTML(html) : html;
   }
 
   // ---------- Dateinamen ----------

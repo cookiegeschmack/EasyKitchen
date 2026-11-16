@@ -8,6 +8,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   const view = { fav: false, veg: false, protein: false, course: 0, taste: 0, query: '', time: 0, effort: 0, cost: 0, sort: 'match' };
   const CL = () => ns.Classify;
+  const T = s => ns.I18n.tr(s);
   const SORT_LABELS = { match: 'Passend zur Suche', time: 'Gesamtzeit', name: 'Name (A–Z)', new: 'Neueste zuerst', fav: 'Favoriten zuerst' };
   let visibleIds = [];
 
@@ -65,7 +66,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           ${have.length ? `<span class="match-badge">✓ ${have.length} von ${r.ingredients.length} Zutaten da</span>` : '<span class="match-badge soft">Treffer im Namen</span>'}
         </div>
         <div class="ing-preview">
-          ${have.map(i => `<span class="ing-tag have">${esc(i.name)}</span>`).join('')}
+          ${have.map(i => `<span class="ing-tag have" translate="no">${esc(i.name)}</span>`).join('')}
           ${rest > 0 ? `<span class="ing-more">+ ${rest} weitere</span>` : ''}
         </div>`;
     } else {
@@ -73,7 +74,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       const rest = r.ingredients.length - shown.length;
       ingLine = `
         <div class="ing-preview">
-          ${shown.map(i => `<span class="ing-tag">${esc(i.name)}</span>`).join('')}
+          ${shown.map(i => `<span class="ing-tag" translate="no">${esc(i.name)}</span>`).join('')}
           ${rest > 0 ? `<span class="ing-more">+ ${rest}</span>` : ''}
         </div>`;
     }
@@ -88,7 +89,7 @@ window.EasyKitchen = window.EasyKitchen || {};
                   title="${r.watch ? 'Favorit entfernen' : 'Als Favorit markieren'}" aria-label="Favorit umschalten">${r.watch ? '★' : '☆'}</button>
         </div>
         <div class="card-body">
-          <h3 class="card-title">${esc(r.title)}</h3>
+          <h3 class="card-title" translate="no">${esc(r.title)}</h3>
           <div class="card-meta">${metaChips(r)}</div>
           ${ingLine}
         </div>
@@ -165,8 +166,8 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   /** Zeiten-Tabelle: Vorbereitung | Zubereitung | Gesamt */
   function timeTableHTML(r) {
-    const cell = (label, v) => `<div><span>${label}</span><strong>${v ? esc(UI.fmtTime(v)) : '–'}</strong></div>`;
-    return `<div class="time-table">${cell('Vorbereitung', r.prepTime)}${cell('Zubereitung', r.cookTime)}${cell('Gesamtzeit', r.time)}</div>`;
+    const cell = (label, v, en) => `<div><span data-en="${en}">${label}</span><strong>${v ? esc(UI.fmtTime(v)) : '–'}</strong></div>`;
+    return `<div class="time-table">${cell('Vorbereitung', r.prepTime, 'Prep time')}${cell('Zubereitung', r.cookTime, 'Cook time')}${cell('Gesamtzeit', r.time, 'Total time')}</div>`;
   }
 
   // =========================================================================
@@ -187,7 +188,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('detail-card').innerHTML = `
       ${r.image ? `<div class="detail-hero"><img src="${r.image}" alt=""></div>` : ''}
       <div class="modal-head">
-        <h2>${esc(r.title)}</h2>
+        <h2 translate="no">${esc(r.title)}</h2>
         <button type="button" class="icon-btn" data-close="detail-modal" aria-label="Schließen">✕</button>
       </div>
       <div class="modal-body">
@@ -215,7 +216,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           <section>
             <h3>Zubereitung</h3>
             ${steps.length
-              ? `<ol class="steps">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`
+              ? `<ol class="steps" translate="no">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`
               : '<p class="muted">Keine Zubereitung hinterlegt.</p>'}
           </section>
         </div>
@@ -243,7 +244,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('detail-ings').innerHTML = r.ingredients.map((i, idx) => `
       <li class="${m && m.matchedIngredients.has(idx) ? 'have' : ''}">
         <span class="ing-amt">${esc(UI.fmtScaled(i, factor))}</span>
-        <span class="ing-name">${esc(i.name)}</span>
+        <span class="ing-name" translate="no">${esc(i.name)}</span>
       </li>`).join('');
     $('serv-label').textContent = `${servings} ${servings === 1 ? 'Portion' : 'Portionen'}`;
     $('serv-range').value = servings;
@@ -270,7 +271,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   const editor = { id: null, draftId: null, initial: '', image: '', effort: 1, cost: 1, course: 'main', taste: 'savory', diet: 'auto' };
 
   function unitOptions(selected) {
-    return D.UNITS.map(u => `<option value="${u.id}" ${u.id === selected ? 'selected' : ''}>${esc(u.label)}</option>`).join('');
+    return D.UNITS.map(u => `<option value="${u.id}" ${u.id === selected ? 'selected' : ''}>${esc(ns.I18n.unitOptionLabel(u))}</option>`).join('');
   }
 
   function sliderMaxFor(unit, amount) {
@@ -517,8 +518,9 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function fmtSavedAt(ts) {
     const d = new Date(ts), now = new Date();
-    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    return d.toDateString() === now.toDateString() ? `heute, ${time}` : `${d.toLocaleDateString('de-DE')}, ${time}`;
+    const loc = ns.I18n.locale();
+    const time = d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === now.toDateString() ? T(`heute, ${time}`) : `${d.toLocaleDateString(loc)}, ${time}`;
   }
 
   function openDrafts() {
@@ -529,8 +531,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       return `
         <li class="draft-item">
           <div class="draft-info">
-            <strong>${esc(d.data.title || 'Ohne Titel')}</strong>
-            <span class="muted">${src ? `Änderungen an „${esc(src.title)}“ · ` : 'Neues Rezept · '}${n} ${n === 1 ? 'Zutat' : 'Zutaten'} · ${esc(fmtSavedAt(d.savedAt))}</span>
+            ${d.data.title ? `<strong translate="no">${esc(d.data.title)}</strong>` : '<strong>Ohne Titel</strong>'}
+            <span class="muted">${src ? `<span translate="no">${esc(T('Änderungen an „' + src.title + '“'))}</span> · ` : 'Neues Rezept · '}${n} ${n === 1 ? 'Zutat' : 'Zutaten'} · ${esc(fmtSavedAt(d.savedAt))}</span>
           </div>
           <div class="btn-row">
             <button type="button" class="btn btn-ghost btn-sm" data-draft-del="${esc(d.id)}">Löschen</button>
@@ -702,7 +704,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       <button type="button" class="daily-slide" data-daily-open="${esc(r.id)}">
         <span class="daily-thumb tone-${ns.Planner.toneOf(r.id)}">${thumb}</span>
         <span class="daily-text">
-          <strong class="daily-name">${esc(r.title)}</strong>
+          <strong class="daily-name" translate="no">${esc(r.title)}</strong>
           <span class="daily-meta">⏱ ${esc(UI.fmtTime(r.time))} · ${esc(D.EFFORT[r.effort])}${r.watch ? ' · ★ Favorit' : ''}</span>
         </span>
         <span class="daily-open">Ansehen ›</span>
@@ -868,7 +870,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         openDetail(detailId);
       } else if (act === 'delete') {
         const r = D.getRecipe(detailId);
-        if (r && confirm(`„${r.title}“ wirklich löschen?`)) {
+        if (r && confirm(T(`„${r.title}“ wirklich löschen?`))) {
           D.deleteRecipe(detailId);
           UI.closeModal('detail-modal');
           UI.toast('Rezept gelöscht');
@@ -917,7 +919,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         return;
       }
       const del = e.target.closest('[data-draft-del]');
-      if (del && confirm('Diesen Entwurf wirklich löschen?')) {
+      if (del && confirm(T('Diesen Entwurf wirklich löschen?'))) {
         D.deleteDraft(del.dataset.draftDel);
         renderDraftsButton();
         if (D.getDrafts().length) openDrafts(); else UI.closeModal('drafts-modal');
@@ -980,6 +982,13 @@ window.EasyKitchen = window.EasyKitchen || {};
 
     // Einstellungen & Backup
     $('settings-btn').addEventListener('click', () => UI.openModal('settings-modal'));
+    $('lang-seg').addEventListener('click', e => {
+      const b = e.target.closest('[data-lang-choice]');
+      if (!b) return;
+      ns.I18n.setPreference(b.dataset.langChoice);
+      renderLanguageSeg();
+    });
+    renderLanguageSeg();
     $('theme-seg').addEventListener('click', e => {
       const b = e.target.closest('[data-theme-choice]');
       if (!b) return;
@@ -1043,7 +1052,9 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (!manual && last !== cur) D.setSetting('lastSeenVersion', cur);
     if (!entries.length) return;
 
-    const fmtDate = d => { const p = String(d || '').split('-'); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : ''; };
+    const en = ns.I18n.lang === 'en';
+    const fmtDate = d => { const p = String(d || '').split('-'); return p.length !== 3 ? '' : en ? `${p[2]}/${p[1]}/${p[0]}` : `${p[2]}.${p[1]}.${p[0]}`; };
+    const loc = e => (en && e.en ? e.en : e);
     $('whatsnew-card').innerHTML = `
       <div class="whatsnew-head">
         <img src="img/icon-128.png" alt="">
@@ -1055,8 +1066,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       <div class="modal-body whatsnew-body">
         ${entries.map(e => `
           <section class="whatsnew-entry">
-            <div class="whatsnew-ver"><span class="version-chip">v${esc(e.version)}</span> <strong>${esc(e.title || '')}</strong> <span class="muted small">${esc(fmtDate(e.date))}</span></div>
-            <ul>${(e.items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+            <div class="whatsnew-ver"><span class="version-chip">v${esc(e.version)}</span> <strong translate="no">${esc(loc(e).title || '')}</strong> <span class="muted small">${esc(fmtDate(e.date))}</span></div>
+            <ul translate="no">${(loc(e).items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>
           </section>`).join('')}
       </div>
       <div class="modal-foot">
@@ -1069,6 +1080,16 @@ window.EasyKitchen = window.EasyKitchen || {};
   // =========================================================================
   // Darstellung: System / Hell / Dunkel
   // =========================================================================
+
+  // ---------- Sprache ----------
+  function renderLanguageSeg() {
+    const p = ns.I18n.preference;
+    document.querySelectorAll('[data-lang-choice]').forEach(b => {
+      const on = b.dataset.langChoice === p;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
 
   function applyTheme(choice) {
     choice = ['light', 'dark'].includes(choice) ? choice : 'system';
@@ -1085,6 +1106,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function init() {
     D.init();
+    ns.I18n.init();
+    ns.I18n.onChange(() => {
+      renderList();
+      U.syncVersionLabels();
+      if (ns.Planner.render && !$('plan-modal').hidden) ns.Planner.render();
+      if (detailId && !$('detail-modal').hidden) renderDetailIngredients(D.getRecipe(detailId), D.matchRecipe(D.getRecipe(detailId), D.parseTerms(view.query)), Number($('serv-range').value) || 1);
+      renderLanguageSeg();
+    });
     applyTheme(D.getSetting('theme', 'system'));
     wire();
     renderList();

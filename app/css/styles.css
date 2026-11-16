@@ -796,6 +796,8 @@ body.drop-target::after {
 .cmp-import input { width: 100%; }
 .cmp-import .muted { font-size: 12.5px; margin: 0; }
 
+html[lang="en"] .lang-hint { display: none; }
+
 /* ---------- Kleine Fenster ---------- */
 @media (max-width: 860px) {
   .topbar { flex-wrap: wrap; gap: 10px 14px; padding: 10px 16px; }

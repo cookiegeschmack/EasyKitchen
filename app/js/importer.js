@@ -697,7 +697,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     return `
       <li class="${dupe ? 'is-dupe' : ''}" ${dupe ? `data-dupe-idx="${idx}"` : ''}>
         ${r.image ? `<img src="${r.image}" alt="">` : `<div class="import-noimg">${esc(r.title.charAt(0).toUpperCase())}</div>`}
-        <div class="import-item-text"><strong>${esc(r.title)}</strong><span class="muted">${dupe ? dupeText : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span>${badge}</div>
+        <div class="import-item-text"><strong translate="no">${esc(r.title)}</strong><span class="muted">${dupe ? dupeText : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span>${badge}</div>
         ${dupe ? `<button type="button" class="btn btn-secondary btn-sm" data-compare="${idx}">${dupe.diff === 0 ? 'Vergleichen' : 'Unterschiede ansehen'}</button>` : ''}
       </li>`;
   }
@@ -745,7 +745,7 @@ window.EasyKitchen = window.EasyKitchen || {};
         onImported: (rec, mode) => {
           const li = b.closest('li');
           li.classList.remove('is-dupe'); li.classList.add('is-imported');
-          li.querySelector('.import-item-text').innerHTML = `<strong>${esc(rec.title)}</strong><span class="muted">${mode === 'replace' ? '✓ Vorhandenes Rezept ersetzt' : '✓ Als neues Rezept importiert'}</span>`;
+          li.querySelector('.import-item-text').innerHTML = `<strong translate="no">${esc(rec.title)}</strong><span class="muted">${mode === 'replace' ? '✓ Vorhandenes Rezept ersetzt' : '✓ Als neues Rezept importiert'}</span>`;
           b.remove();
         }
       });

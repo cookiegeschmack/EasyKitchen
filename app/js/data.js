@@ -29,7 +29,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     { id: 'scheibe',label: 'Scheibe', plural: 'Scheiben',        max: 10,   step: 1 },
     { id: 'zweig',  label: 'Zweig', plural: 'Zweige',          max: 10,   step: 1 },
     { id: 'handvoll', label: 'Handvoll',     max: 5,    step: 0.5 },
-    { id: 'msp',    label: 'Msp.',           max: 5,    step: 1 },
+    { id: 'msp',    label: 'Messerspitze', plural: 'Messerspitzen', max: 5, step: 1 },
     // frei benennbar (z. B. Blätter, Stangen, Tropfen) → Name steht in ingredient.customUnit
     { id: 'custom', label: 'Eigenes …',      max: 20,   step: 1 },
     { id: 'ng',     label: 'nach Geschmack', max: 0,    step: 0 }
@@ -301,10 +301,15 @@ window.EasyKitchen = window.EasyKitchen || {};
     'ein', 'eine', 'einen', 'etwas', 'and', 'or', 'with']);
   function parseTerms(query) {
     const seen = new Set();
-    return String(query || '')
-      .split(/[,;&+\s]+/)
-      .map(norm)
-      .filter(t => t.length >= 2 && !SEARCH_STOPWORDS.has(t) && !seen.has(t) && seen.add(t));
+    const words = String(query || '').split(/[,;&+\s]+/).map(norm).filter(Boolean);
+    // englische Zweiwort-Begriffe zusammenhalten („olive oil“, „bell pepper“, „spring onion“)
+    const FN = window.EasyKitchen.FoodNames;
+    const merged = [];
+    for (let i = 0; i < words.length; i++) {
+      if (FN && words[i + 1] && FN.isPhrase(words[i] + ' ' + words[i + 1])) { merged.push(words[i] + ' ' + words[i + 1]); i++; }
+      else merged.push(words[i]);
+    }
+    return merged.filter(t => t.length >= 2 && !SEARCH_STOPWORDS.has(t) && !seen.has(t) && seen.add(t));
   }
 
   // Endungen, die aus einer Zutat ein eigenständiges Produkt machen:
@@ -385,12 +390,16 @@ window.EasyKitchen = window.EasyKitchen || {};
     const matchedTerms = [];
     const matchedIngredients = new Set();
     let titleHits = 0;
+    const FN = window.EasyKitchen.FoodNames;
     terms.forEach(term => {
       let hit = false;
+      // Suchwort + Übersetzungen (englisch ↔ deutsch)
+      const variants = [term].concat(FN ? FN.alternatives(term) : []);
+      const any = text => variants.some(v => termMatches(v, text));
       recipe.ingredients.forEach((ing, i) => {
-        if (termMatches(term, ing.name)) { matchedIngredients.add(i); hit = true; }
+        if (any(ing.name)) { matchedIngredients.add(i); hit = true; }
       });
-      if (termMatches(term, recipe.title)) { hit = true; titleHits++; }
+      if (any(recipe.title)) { hit = true; titleHits++; }
       if (hit) matchedTerms.push(term);
     });
     const score = matchedTerms.length * 10 + matchedIngredients.size * 2 + titleHits;

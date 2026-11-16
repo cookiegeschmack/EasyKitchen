@@ -7,13 +7,40 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.7.0',
+    date: '2026-11-16',
+    title: 'Englisch, zweisprachige Suche & einfachere Installation',
+    items: [
+      "🌍 EasyKitchen spricht jetzt Englisch: In den Einstellungen unter „Sprache“ wählst du Deutsch, English oder „Wie System“. Menüs, Hinweise, PDF und Einkaufsliste wechseln mit – deine Rezepte bleiben so, wie du sie geschrieben hast.",
+      "🔎 Die Zutatensuche versteht beide Sprachen: „tomato onion“ findet deine Rezepte mit Tomaten und Zwiebeln – und umgekehrt.",
+      "📦 Einfachere Installation: Das Installationsfenster zeigt klar „EasyKitchen → Applications“. Wird die App trotzdem direkt aus dem Fenster oder aus „Downloads“ gestartet, bietet sie an, sich mit einem Klick in den Programme-Ordner zu verschieben.",
+      "🥄 „Msp.“ heißt jetzt ausgeschrieben „Messerspitze“."
+    ],
+    en: {
+      title: "English, bilingual search & easier installation",
+      items: [
+        "🌍 EasyKitchen now speaks English: choose Deutsch, English or “Like system” under “Language” in the settings. Menus, messages, PDF and shopping list switch too – your recipes stay exactly as you wrote them.",
+        "🔎 The ingredient search understands both languages: “tomato onion” finds your recipes with Tomaten and Zwiebeln – and vice versa.",
+        "📦 Easier installation: the installer window clearly shows “EasyKitchen → Applications”. If the app is still started directly from that window or from “Downloads”, it offers to move itself to the Applications folder with one click.",
+        "🥄 “Msp.” is now written out as “Messerspitze” (knife tip)."
+      ]
+    }
+  },
+  {
     version: '1.6.4',
     date: '2026-11-16',
     title: 'Zutatensuche mit UND',
     items: [
       '🔎 Die Zutatensuche zeigt jetzt nur noch Rezepte, die ALLE eingegebenen Zutaten enthalten – „Tomaten Zwiebeln“ findet nur Rezepte mit beidem. Füllwörter wie „und“ oder „mit“ werden ignoriert.',
       '💡 Findet die Suche nichts, siehst du, wie viele Rezepte zumindest einen Teil der Zutaten enthalten.'
-    ]
+    ],
+    en: {
+      title: "Ingredient search with AND",
+      items: [
+        "🔎 The ingredient search now only shows recipes that contain ALL entered ingredients – “tomatoes onions” only finds recipes with both. Filler words like “and” or “with” are ignored.",
+        "💡 If the search finds nothing, you can see how many recipes contain at least some of the ingredients."
+      ]
+    }
   },
   {
     version: '1.6.3',
@@ -23,7 +50,15 @@ window.EasyKitchen.CHANGELOG = [
       '🔄 Updates hängen nicht mehr in einer Schleife: Die neue Version wird erst daneben installiert und geprüft, bevor sie die alte ersetzt. Klappt das nicht (z. B. weil macOS das Ändern von Apps blockiert), bleibt die App intakt und erklärt, wie es weitergeht – inklusive manueller Installation mit einem Klick.',
       '🧭 Wurde versehentlich eine alte Kopie geöffnet (z. B. aus der DMG oder „Downloads“), weist EasyKitchen darauf hin und öffnet auf Wunsch die aktuelle Version.',
       '🔍 Beim Import siehst du sofort, welche schon vorhandenen Rezepte Unterschiede haben („● 3 Unterschiede“) und welche identisch sind („✓ identisch“) – Rezepte mit Unterschieden stehen oben.'
-    ]
+    ],
+    en: {
+      title: "Reliable updates & differences at a glance",
+      items: [
+        "🔄 Updates no longer get stuck in a loop: the new version is installed next to the old one and checked before replacing it. If that fails (e.g. because macOS blocks changes to apps), the app stays intact and explains what to do – including a one-click manual installation.",
+        "🧭 If an old copy was opened by mistake (e.g. from the DMG or “Downloads”), EasyKitchen points it out and opens the current version on request.",
+        "🔍 When importing, you can see right away which existing recipes differ (“● 3 differences”) and which are identical (“✓ identical”) – recipes with differences are listed first."
+      ]
+    }
   },
   {
     version: '1.6.2',
@@ -31,7 +66,13 @@ window.EasyKitchen.CHANGELOG = [
     title: 'Doppelte Rezepte ersetzen',
     items: [
       '🔁 Im Vergleich doppelter Rezepte gibt es jetzt „Vorhandenes ersetzen“: Die importierte Fassung überschreibt das bestehende Rezept (nach Rückfrage) – Favorit und Wochenplan bleiben erhalten.'
-    ]
+    ],
+    en: {
+      title: "Replace duplicate recipes",
+      items: [
+        "🔁 When comparing duplicate recipes there is now “Replace existing”: the imported version overwrites the existing recipe (after confirmation) – favorite and weekly plan are kept."
+      ]
+    }
   },
   {
     version: '1.6.1',
@@ -42,7 +83,16 @@ window.EasyKitchen.CHANGELOG = [
       '📋 Auch schlichte Notizen werden verstanden: eine Liste von Zutaten ohne Mengen und darunter Schritte als Spiegelstriche oder Zeilen ohne Punkt – jede Zeile wird zu einem eigenen Schritt.',
       '⚖️ Mengen werden besser erkannt und direkt in die Felder eingetragen: z. B. „Mehl (200 g)“, „Butter: 50 g“, „eine halbe Zitrone“, „1 gehäufter EL“, „200 g / 7 oz“ – und Mengen, die in einer eigenen Zeile über oder unter der Zutat stehen.',
       '✏️ Neue Einheit „Eigenes …“: Einheit frei benennen, z. B. Blätter, Stangen, Tropfen oder Würfel. Der Import nutzt sie automatisch für solche Angaben; auch Einkaufsliste, PDF und Portionsregler kennen sie.'
-    ]
+    ],
+    en: {
+      title: "Smarter import & custom units",
+      items: [
+        "🧠 The import tells ingredients and preparation steps apart much more reliably – even without headings, when screenshots mix both up or steps are labeled “Step 1”, “STEP 2/5” etc.",
+        "📋 Simple notes are understood too: a list of ingredients without amounts followed by steps as dashes or lines without periods – each line becomes its own step.",
+        "⚖️ Amounts are recognized better and filled in directly, e.g. “flour (200 g)”, “butter: 50 g”, “half a lemon”, “1 heaped tbsp”, “200 g / 7 oz” – and amounts on their own line above or below the ingredient.",
+        "✏️ New unit “Custom …”: name the unit freely, e.g. leaves, stalks, drops or cubes. The import uses it automatically for such amounts; shopping list, PDF and serving slider know it too."
+      ]
+    }
   },
   {
     version: '1.6.0',
@@ -53,7 +103,16 @@ window.EasyKitchen.CHANGELOG = [
       '🗂️ Neuer Button „Entwürfe“ oben in der Leiste: Dort findest du alle angefangenen Rezepte und machst mit einem Klick weiter. Wird die App mit offenem Editor beendet, landet der Stand automatisch dort.',
       '🔍 Doppelte Rezepte vergleichen: Beim Import zeigt „Unterschiede ansehen“ das importierte und das vorhandene Rezept nebeneinander – abweichende Zutaten, Mengen, Schritte und Angaben sind farbig markiert.',
       '➕ Trotzdem übernehmen: Aus dem Vergleich heraus lässt sich das importierte Rezept als neues Rezept speichern – mit gleichem oder eigenem Namen. Das vorhandene bleibt unverändert.'
-    ]
+    ],
+    en: {
+      title: "Drafts & differences between duplicate recipes",
+      items: [
+        "📝 Nothing gets lost anymore: if you click outside while creating or editing a recipe (or press Esc/Cancel), EasyKitchen asks – save as draft, discard or keep editing. The editor also has a “Save as draft” button.",
+        "🗂️ New “Drafts” button at the top: find all unfinished recipes there and continue with one click. If the app is closed with the editor open, your work is saved there automatically.",
+        "🔍 Compare duplicate recipes: when importing, “View differences” shows the imported and the existing recipe side by side – different ingredients, amounts, steps and details are highlighted.",
+        "➕ Import anyway: from the comparison, the imported recipe can be saved as a new recipe – with the same or a new name. The existing one stays unchanged."
+      ]
+    }
   },
   {
     version: '1.5.0',

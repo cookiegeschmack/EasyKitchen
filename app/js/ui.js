@@ -58,15 +58,16 @@ window.EasyKitchen = window.EasyKitchen || {};
   // ---------- Formatierung ----------
   function fmtNum(n) {
     if (!Number.isFinite(n)) return '';
-    return Number(n.toFixed(2)).toLocaleString('de-DE', { maximumFractionDigits: 2 });
+    return Number(n.toFixed(2)).toLocaleString(ns.I18n ? ns.I18n.locale() : 'de-DE', { maximumFractionDigits: 2 });
   }
 
   function fmtAmount(ing) {
     const unit = ns.Data.UNIT_BY_ID[ing.unit];
-    if (!unit || unit.id === 'ng') return 'nach Geschmack';
+    const I = ns.I18n;
+    if (!unit || unit.id === 'ng') return I ? I.tr('nach Geschmack') : 'nach Geschmack';
     if (!ing.amount) return '';
     if (unit.id === 'custom') return `${fmtNum(ing.amount)} ${ing.customUnit || ''}`.trim();
-    return `${fmtNum(ing.amount)} ${ing.amount > 1 && unit.plural ? unit.plural : unit.label}`;
+    return `${fmtNum(ing.amount)} ${I ? I.unitLabel(unit, ing.amount) : (ing.amount > 1 && unit.plural ? unit.plural : unit.label)}`;
   }
 
   /** Menge für eine andere Portionszahl umrechnen und sinnvoll runden. */
@@ -83,9 +84,11 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function fmtTime(min) {
     if (!min) return '–';
-    if (min < 60) return `${min} Min`;
+    const en = ns.I18n && ns.I18n.lang === 'en';
+    const MIN = en ? 'min' : 'Min', H = en ? 'h' : 'Std';
+    if (min < 60) return `${min} ${MIN}`;
     const h = Math.floor(min / 60), m = min % 60;
-    return m ? `${h} Std ${m} Min` : `${h} Std`;
+    return m ? `${h} ${H} ${m} ${MIN}` : `${h} ${H}`;
   }
 
   // ---------- Bilder ----------
