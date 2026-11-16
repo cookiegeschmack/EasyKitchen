@@ -691,11 +691,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function importItem(r, dupe, idx) {
     const dupeText = dupe && (dupe.inFile ? 'Doppelt in dieser Datei – wird übersprungen' : 'Schon vorhanden – wird übersprungen');
+    const badge = !dupe || dupe.diff < 0 ? ''
+      : dupe.diff === 0 ? '<span class="diff-badge is-same">✓ identisch</span>'
+      : `<span class="diff-badge is-diff">● ${dupe.diff} ${dupe.diff === 1 ? 'Unterschied' : 'Unterschiede'}</span>`;
     return `
       <li class="${dupe ? 'is-dupe' : ''}" ${dupe ? `data-dupe-idx="${idx}"` : ''}>
         ${r.image ? `<img src="${r.image}" alt="">` : `<div class="import-noimg">${esc(r.title.charAt(0).toUpperCase())}</div>`}
-        <div class="import-item-text"><strong>${esc(r.title)}</strong><span class="muted">${dupe ? dupeText : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span></div>
-        ${dupe ? `<button type="button" class="btn btn-secondary btn-sm" data-compare="${idx}">Unterschiede ansehen</button>` : ''}
+        <div class="import-item-text"><strong>${esc(r.title)}</strong><span class="muted">${dupe ? dupeText : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span>${badge}</div>
+        ${dupe ? `<button type="button" class="btn btn-secondary btn-sm" data-compare="${idx}">${dupe.diff === 0 ? 'Vergleichen' : 'Unterschiede ansehen'}</button>` : ''}
       </li>`;
   }
 
@@ -707,6 +710,12 @@ window.EasyKitchen = window.EasyKitchen || {};
   function confirmImport(recipes, after) {
     const { fresh, dupes } = D.splitImport(recipes);
     const n = fresh.length;
+    // Unterschiede vorab zählen und Doppelte MIT Unterschieden zuerst zeigen
+    dupes.forEach(d => { d.diff = ns.Compare ? ns.Compare.countDiffs(d.r, d.match) : -1; });
+    dupes.sort((a, b) => (b.diff > 0) - (a.diff > 0) || b.diff - a.diff);
+    const nDiff = dupes.filter(d => d.diff > 0).length, nSame = dupes.filter(d => d.diff === 0).length;
+    const dupeSummary = dupes.length ? [nDiff ? `<span class="diff-badge is-diff">● ${nDiff} mit Unterschieden</span>` : '',
+      nSame ? `<span class="diff-badge is-same">✓ ${nSame} identisch</span>` : ''].join(' ') : '';
     const title = !n ? 'Alles schon vorhanden'
       : n === 1 ? '1 neues Rezept importieren' : `${n} neue Rezepte importieren`;
     $('import-confirm-card').innerHTML = `
@@ -718,9 +727,9 @@ window.EasyKitchen = window.EasyKitchen || {};
         ${n ? `<ul class="import-list">${fresh.map(r => importItem(r, null)).join('')}</ul>`
             : `<p class="import-all-dupes">Alle ${dupes.length === 1 ? 'Rezepte dieser Datei sind' : `${dupes.length} Rezepte dieser Datei sind`} bereits in deiner Sammlung. Es wird nichts doppelt angelegt.</p>`}
         ${dupes.length ? `
-          <details class="import-dupes" ${!n || dupes.length <= 3 ? 'open' : ''}>
-            <summary>${dupes.length === 1 ? '1 Rezept ist' : `${dupes.length} Rezepte sind`} schon vorhanden und ${dupes.length === 1 ? 'wird' : 'werden'} übersprungen</summary>
-            <p class="import-dupes-hint muted">Unter „Unterschiede ansehen“ vergleichst du beide Fassungen und kannst sie trotzdem als neues Rezept übernehmen.</p>
+          <details class="import-dupes" ${!n || dupes.length <= 3 || nDiff ? 'open' : ''}>
+            <summary>${dupes.length === 1 ? '1 Rezept ist' : `${dupes.length} Rezepte sind`} schon vorhanden und ${dupes.length === 1 ? 'wird' : 'werden'} übersprungen<span class="import-dupes-summary">${dupeSummary}</span></summary>
+            <p class="import-dupes-hint muted">Rezepte mit Unterschieden stehen oben. Per Klick vergleichst du beide Fassungen und kannst die importierte als neues Rezept übernehmen oder das vorhandene damit ersetzen.</p>
             <ul class="import-list">${dupes.map((d, i) => importItem(d.r, d, i)).join('')}</ul>
           </details>` : ''}
       </div>

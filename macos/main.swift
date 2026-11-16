@@ -130,6 +130,119 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             webView.loadFileURL(index, allowingReadAccessTo: appDir)
         }
         NSApp.activate(ignoringOtherApps: true)
+        // Ergebnis eines vorherigen Updates prüfen (verhindert die Schleife „Update installiert → wieder alte Version“)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.checkUpdateOutcome() }
+    }
+
+    // MARK: Update-Ergebnis & Selbsthilfe
+
+    var updateStatusURL: URL { storageURL.deletingLastPathComponent().appendingPathComponent("update-status.json") }
+    /// Hier bleibt die Update-DMG liegen, falls die automatische Installation scheitert (für die manuelle Installation).
+    var keptUpdateDMG: URL { storageURL.deletingLastPathComponent().appendingPathComponent("\(APP_NAME)-Update.dmg") }
+    var standardAppPath: String { "/Applications/\(APP_NAME).app" }
+
+    func appVersion(atPath path: String) -> String? {
+        NSDictionary(contentsOfFile: (path as NSString).appendingPathComponent("Contents/Info.plist"))?["CFBundleShortVersionString"] as? String
+    }
+
+    func checkUpdateOutcome() {
+        let fm = FileManager.default
+        let current = currentAppVersion
+        let here = Bundle.main.bundlePath
+        if let data = try? Data(contentsOf: updateStatusURL),
+           let st = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            try? fm.removeItem(at: updateStatusURL)
+            let expected = (st["expected"] as? String) ?? ""
+            let ok = (st["ok"] as? Bool) ?? false
+            let dest = (st["dest"] as? String) ?? ""
+            let err = (st["error"] as? String) ?? ""
+            if !expected.isEmpty && compareVersions(current, expected) >= 0 {
+                try? fm.removeItem(at: keptUpdateDMG)
+                toast("Update auf v\(current) installiert ✓")
+                return
+            }
+            if ok, !dest.isEmpty, dest != here, let v = appVersion(atPath: dest), compareVersions(v, current) > 0 {
+                offerOpenNewerCopy(path: dest, version: v)
+                return
+            }
+            if !expected.isEmpty {
+                offerManualInstall(reason: err.isEmpty ? "Die neue Version v\(expected) konnte nicht eingesetzt werden." : err)
+                return
+            }
+        }
+        // Alte Kopie gestartet (z. B. direkt aus der DMG oder aus „Downloads“), obwohl im Programme-Ordner eine neuere liegt
+        if here != standardAppPath, let v = appVersion(atPath: standardAppPath), compareVersions(v, current) > 0 {
+            offerOpenNewerCopy(path: standardAppPath, version: v)
+        }
+    }
+
+    func offerOpenNewerCopy(path: String, version: String) {
+        let alert = NSAlert()
+        alert.messageText = "Neuere Version gefunden"
+        alert.informativeText = "Du hast eine ältere Kopie von \(APP_NAME) (v\(currentAppVersion)) geöffnet:\n\(Bundle.main.bundlePath)\n\nDie aktuelle Version v\(version) liegt hier:\n\(path)\n\nTipp: Öffne \(APP_NAME) künftig aus dem Programme-Ordner und lösche die alte Kopie bzw. wirf die DMG aus."
+        alert.addButton(withTitle: "Neue Version öffnen")
+        alert.addButton(withTitle: "Später")
+        if alert.runModal() == .alertFirstButtonReturn {
+            let cfg = NSWorkspace.OpenConfiguration()
+            cfg.createsNewApplicationInstance = true
+            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: cfg) { _, _ in
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+            }
+        }
+    }
+
+    /// Automatische Installation nicht möglich → verständlich erklären und manuelle Installation anbieten.
+    func offerManualInstall(reason: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let hasDMG = FileManager.default.fileExists(atPath: self.keptUpdateDMG.path)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Update konnte nicht automatisch installiert werden"
+            alert.informativeText = reason + "\n\nSo klappt es:\n• Manuell installieren: Das Update-Fenster öffnet sich und \(APP_NAME) wird beendet. Ziehe dann „\(APP_NAME)“ auf „Applications“ und wähle „Ersetzen“.\n• Oder dauerhaft erlauben: Systemeinstellungen → Datenschutz & Sicherheit → App-Verwaltung → \(APP_NAME) einschalten. Danach klappen Updates wieder automatisch.\n\nDeine Rezepte bleiben in jedem Fall erhalten."
+            alert.addButton(withTitle: hasDMG ? "Manuell installieren" : "Download-Seite öffnen")
+            alert.addButton(withTitle: "Systemeinstellungen öffnen")
+            alert.addButton(withTitle: "Abbrechen")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                if hasDMG {
+                    NSWorkspace.shared.open(self.keptUpdateDMG)
+                    // App beenden, damit Finder sie ersetzen darf
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { NSApp.terminate(nil) }
+                } else if let url = URL(string: self.releasesLatestURL) {
+                    NSWorkspace.shared.open(url)
+                }
+            case .alertSecondButtonReturn:
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles") {
+                    NSWorkspace.shared.open(url)
+                }
+            default: break
+            }
+        }
+    }
+
+    /// Prüft VOR dem Beenden, ob die App an ihrem Ziel ersetzt werden darf (Schreibrechte, macOS-Schutz „App-Verwaltung“).
+    func canReplaceApp(at dest: String) -> (ok: Bool, reason: String) {
+        let fm = FileManager.default
+        let parent = (dest as NSString).deletingLastPathComponent
+        if !fm.isWritableFile(atPath: parent) {
+            return (false, "Für den Ordner „\(parent)“ fehlen die Schreibrechte (z. B. weil \(APP_NAME) von einem anderen Benutzer installiert wurde).")
+        }
+        if fm.fileExists(atPath: dest) {
+            let probe = (dest as NSString).appendingPathComponent("Contents/.easykitchen-update-test")
+            if !fm.createFile(atPath: probe, contents: Data()) {
+                return (false, "macOS erlaubt \(APP_NAME) nicht, sich selbst zu aktualisieren (Schutz „App-Verwaltung“).")
+            }
+            try? fm.removeItem(atPath: probe)
+        }
+        return (true, "")
+    }
+
+    /// Update-DMG für eine eventuelle manuelle Installation aufheben.
+    func keepDMGForManualInstall(_ source: URL) {
+        guard source.pathExtension.lowercased() == "dmg", source.path != keptUpdateDMG.path else { return }
+        try? FileManager.default.removeItem(at: keptUpdateDMG)
+        try? FileManager.default.copyItem(at: source, to: keptUpdateDMG)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
@@ -931,6 +1044,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let cleanupSourceCmd = deleteSourceAfter ? "rm -rf \"\(sourceURL.path)\"" : ""
             let detachCmd = mountPoint.isEmpty ? "" : "/usr/bin/hdiutil detach \"\(mountPoint)\" -force -quiet || true\nrmdir \"\(mountPoint)\" 2>/dev/null || true"
 
+            let newVersion = self.appVersion(atPath: sourceAppPath) ?? ""
+
+            // Vorab prüfen, ob das Ersetzen erlaubt ist – sonst NICHT beenden (keine Update-Schleife)
+            let check = self.canReplaceApp(at: destAppPath)
+            if !check.ok {
+                self.keepDMGForManualInstall(sourceURL)
+                if !mountPoint.isEmpty { _ = self.runProcess("/usr/bin/hdiutil", args: ["detach", mountPoint, "-force", "-quiet"]) }
+                if deleteSourceAfter { try? FileManager.default.removeItem(at: sourceURL) }
+                self.progress("error", 0, "Automatische Installation nicht möglich – siehe Hinweisfenster.")
+                self.offerManualInstall(reason: check.reason)
+                return
+            }
+            // DMG vorsorglich aufheben, falls das Ersetzen doch scheitert (wird nach Erfolg gelöscht)
+            self.keepDMGForManualInstall(sourceURL)
+
+            let statusPath = self.updateStatusURL.path
+            let keptDMGPath = self.keptUpdateDMG.path
+            let parentDir = (destAppPath as NSString).deletingLastPathComponent
             let binaryPath = "\(destAppPath)/Contents/MacOS/\(APP_NAME)"
             let script = """
             #!/bin/bash
@@ -948,11 +1079,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             /usr/bin/pkill -TERM -f "$BIN" 2>/dev/null; sleep 0.5
             /usr/bin/pkill -KILL -f "$BIN" 2>/dev/null
 
-            # 2) Neue Version einsetzen
-            rm -rf "$DEST"
-            /usr/bin/ditto "\(sourceAppPath)" "$DEST"
-            /usr/bin/xattr -cr "$DEST" 2>/dev/null || true
+            # 2) Neue Version sicher einsetzen: erst daneben kopieren & prüfen, dann tauschen.
+            #    Scheitert etwas, bleibt die alte App intakt und erklärt beim nächsten Start, was zu tun ist.
+            NEWVER="\(newVersion)"
+            STATUS="\(statusPath)"
+            TMP="\(parentDir)/.\(APP_NAME)-neu-$$.app"
+            BAK="\(parentDir)/.\(APP_NAME)-alt-$$.app"
+            ERRF="$(/usr/bin/mktemp -t easykitchen_err)"
+            clean() { tr -d '"\\\\\\r' | tr '\\n' ' ' | cut -c1-300; }
+            status() { printf '{"expected":"%s","ok":%s,"dest":"%s","error":"%s","dmg":"%s"}' "$NEWVER" "$1" "$DEST" "$(printf '%s' "$2" | clean)" "\(keptDMGPath)" > "$STATUS"; }
+            fail() {
+              status false "$1 $(cat "$ERRF" 2>/dev/null)"
+              rm -rf "$TMP" 2>/dev/null
+              \(detachCmd)
+              /usr/bin/open "$DEST"
+              rm -f "$ERRF" "\(scriptPath)"
+              exit 0
+            }
+            rm -rf "$TMP" 2>/dev/null
+            /usr/bin/ditto "\(sourceAppPath)" "$TMP" 2>"$ERRF" || fail "Die neue Version konnte nicht kopiert werden."
+            [ "$(/usr/bin/defaults read "$TMP/Contents/Info" CFBundleShortVersionString 2>/dev/null)" = "$NEWVER" ] || fail "Die neue Version ist unvollständig."
+            /usr/bin/xattr -cr "$TMP" 2>/dev/null || true
+            if [ -e "$DEST" ]; then
+              mv "$DEST" "$BAK" 2>"$ERRF" || fail "macOS hat das Ersetzen der alten Version blockiert."
+            fi
+            if ! mv "$TMP" "$DEST" 2>"$ERRF"; then mv "$BAK" "$DEST" 2>/dev/null; fail "Die neue Version konnte nicht eingesetzt werden."; fi
+            rm -rf "$BAK" 2>/dev/null
+            [ "$(/usr/bin/defaults read "$DEST/Contents/Info" CFBundleShortVersionString 2>/dev/null)" = "$NEWVER" ] || fail "Nach dem Ersetzen wurde eine falsche Version gefunden."
             touch "$DEST"
+            /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" 2>/dev/null || true
+            status true ""
+            rm -f "$ERRF"
             \(detachCmd)
             \(cleanupSourceCmd)
 
