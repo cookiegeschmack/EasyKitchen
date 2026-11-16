@@ -53,6 +53,8 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   const ING_HEADER = /^(zutaten|zutatenliste|die zutaten|ingredients|du brauchst|das brauchst du|was du brauchst|einkaufsliste)\b/i;
   const STEP_HEADER = /^(zubereitung|zubereitungsschritte|anleitung|anleitungen|so geht'?s|so wird'?s gemacht|so gehts|schritte|arbeitsschritte|how to make|instructions|directions|method|preparation|steps)\b/i;
+  // Reine Schrittmarke in eigener Zeile: „Schritt“, „Schritt 1“, „SCHRITT 2/5“, „Schritt 3 von 6“, „1. Schritt“, „Step 4“
+  const STEP_MARK = /^(?:(?:arbeits|zubereitungs)?schritt|step)(?:\s*(?:nr\.?\s*)?\d{1,2}(?:\s*(?:\/|von|of)\s*\d{1,2})?)?\s*[:.)\-–]?$|^\d{1,2}\s*\.\s*(?:arbeits)?schritt\s*:?$/i;
   // Hinweise/Tipps nach den Schritten: Überschrift weglassen, Inhalt als letzten Schritt behalten
   const NOTES_HEADER = /^(notizen|notiz|hinweis|hinweise|tipp|tipps|tip|tips|notes)\b/i;
   const END_HEADER = /^(kommentare|bewertungen|ähnliche rezepte|das könnte dich|weitere rezepte|nährwerte|nährwert|naehrwerte|nährwerte pro portion|anzeige|werbung|reviews|comments|nutrition|tipps? (?:und|&) tricks|hilfsmittel|utensilien|küchenutensilien|equipment|das solltest du haben|das brauchst du an geräten|was meinst du|hast du das rezept|das rezept findest du|mehr (?:einfache )?rezepte)\b/i;
@@ -179,6 +181,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   /** Eine Zutatenzeile zerlegen → { name, amount, unit } oder null. */
   function parseIngredient(line) {
     let l = cleanLine(line);
+    if (STEP_MARK.test(l)) return null;                      // „Schritt 1“ ist keine Zutat
     // „Mirin - Alternativ trockener Weißwein …“ / „Hähnchenbrust – oder Schenkel“ → „Mirin (alternativ …)“
     l = l.replace(/\s[-–]\s((?:alternativ|oder|bzw\.?|z\.\s?b\.)\b.*)$/i, (m, alt) => ` (${alt.charAt(0).toLowerCase() + alt.slice(1)})`);
     if (l.length > 110) l = l.slice(0, 110).replace(/\s\S*$/, '');
@@ -351,6 +354,12 @@ window.EasyKitchen = window.EasyKitchen || {};
         if (rest) steps.push('§NOTE§' + rest); else steps.push('§NOTE§');
         continue;
       }
+      // Schrittmarke: hier beginnt (spätestens) die Zubereitung – nie eine Zutat
+      if (STEP_MARK.test(l)) {
+        if (section === 'ing') section = 'steps';
+        (section === 'steps' ? steps : section === 'head' ? head : other).push(l);
+        continue;
+      }
       if (ING_HEADER.test(k) && l.length < 60) {
         section = 'ing';
         const sv = l.match(/(\d+)\s*(portion|person|stück|serving)/i) || l.match(/für\s+(\d+)/i);
@@ -370,6 +379,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       const pool = head.splice(0);
       let firstFound = false, inSteps = false;
       pool.forEach((l, i) => {
+        if (STEP_MARK.test(l)) { if (firstFound) { steps.push(l); inSteps = true; } return; }
         if (!firstFound) {
           // erste Zutat: Mengenzeile, oder Mengen-/Namenspaar über zwei Zeilen
           if ((looksLikeIngredient(l) || (isQtyOnly(l) && pool[i + 1])) && !isStepLike(l)) { ing.push(l); firstFound = true; }
@@ -377,7 +387,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           return;
         }
         if (inSteps) { steps.push(l); return; }
-        if (isStepLike(l)) { steps.push(l); inSteps = true; return; }
+        if (STEP_MARK.test(l) || isStepLike(l)) { steps.push(l); inSteps = true; return; }
         if (isIngLike(l) || isQtyOnly(l) || (l.length <= 40 && !/[.!?]$/.test(l))) { ing.push(l); return; }
         steps.push(l); inSteps = true;
       });
@@ -490,6 +500,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     }
     // Zutaten (Zwischenüberschriften wie „Für den Teig:“ oder „FÜR DIE SOSSE“ überspringen)
     draft.ingredients = mergeSplitQty(ing
+      .filter(l => !STEP_MARK.test(l))
       .filter(l => !(l === l.toUpperCase() && /[A-ZÄÖÜ]{3}/.test(l) && !/^\s*[\d½¼¾]/.test(l)))
       .filter(l => !(/:$/.test(l) && !/\d/.test(l)))
       .filter(l => !/^(für|for)\s+(die|den|das)\s/i.test(l) || /\d/.test(l))
@@ -510,7 +521,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (l.startsWith('§NOTE§')) { flush(); inNotes = true; const t = l.slice(6).trim(); if (t) buf = t; return; }
       if (inNotes) { buf = buf ? buf + (/[.!?:]$/.test(buf) ? ' ' : ' ') + l : l; return; }
       // reine Schrittmarke in eigener Zeile: „3“, „3.“, „(3)“, „Schritt 3“, „③“, „3️⃣“
-      if (/^(schritt|step)\s*\d+\s*:?$/i.test(l) || /^\(?\d{1,2}[.):]?\)?$/.test(l) || /^[①-⑳]$/.test(l) || /^\d\uFE0F?\u20E3$/.test(l)) { flush(); return; }
+      if (STEP_MARK.test(l) || /^\(?\d{1,2}[.):]?\)?$/.test(l) || /^[①-⑳]$/.test(l) || /^\d\uFE0F?\u20E3$/.test(l)) { flush(); return; }
       const st = D.stripStepNumber(l);
       if (st.numbered) { flush(); buf = st.text; return; }      // nummerierte Zeile = neuer Schritt
       if (!buf) { buf = l; return; }

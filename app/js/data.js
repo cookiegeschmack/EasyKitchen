@@ -406,7 +406,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const before = l;
     l = l.replace(/^(\d)️?⃣\s*/, '');                                   // 1️⃣
     l = l.replace(new RegExp('^[' + CIRCLED + ']\\s*'), '');                        // ①
-    l = l.replace(/^(?:schritt|step)\s*\d{1,2}\s*[:.)\-–—]?\s*/i, '');            // „Schritt 3:“
+    l = l.replace(/^(?:(?:arbeits|zubereitungs)?schritt|step)\s*\d{1,2}(?:\s*(?:\/|von|of)\s*\d{1,2})?\s*[:.)\-–—]?\s*/i, '');   // „Schritt 3:“, „Schritt 3 von 5“
     l = l.replace(/^\d{1,2}\s*\.\s*schritt\s*[:\-–—]?\s*/i, '');                  // „3. Schritt:“
     let prev;
     do { prev = l; l = l.replace(NUM_PREFIX, ''); } while (l !== prev && l);      // „1. 2. 3. Text“
@@ -433,7 +433,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     let lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     lines = lines.flatMap(splitInlineSteps);
     // reine Schrittmarken in eigener Zeile („3“, „(3)“, „3.“, „Schritt 3“) weglassen
-    lines = lines.filter(l => !/^(?:(?:schritt|step)\s*)?\(?\d{1,2}[.):]?\)?$/i.test(l) && !/^[①-⑳]$/.test(l) && !/^\d\uFE0F?\u20E3$/.test(l));
+    lines = lines.filter(l => !/^(?:(?:schritt|step)\s*)?\(?\d{1,2}[.):]?\)?$/i.test(l) && !/^(?:(?:arbeits|zubereitungs)?schritt|step)(?:\s*\d{1,2}(?:\s*(?:\/|von|of)\s*\d{1,2})?)?\s*[:.)]?$/i.test(l) && !/^[①-⑳]$/.test(l) && !/^\d\uFE0F?\u20E3$/.test(l));
     lines = lines.map(l => stripStepNumber(l.replace(/^[•·▪●○◦■□☐✓✔*>\-–—]+\s*/, '')).text).filter(Boolean);
     // Nummern ohne Punkt („1 Zwiebel schneiden“, „2 Anbraten“) nur entfernen, wenn ALLE Zeilen
     // fortlaufend 1, 2, 3 … beginnen – sonst sind es Mengen („2 Eier verquirlen“).

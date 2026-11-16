@@ -11,7 +11,7 @@ window.EasyKitchen.CHANGELOG = [
     date: '2026-11-16',
     title: 'Klügerer Import & eigene Einheiten',
     items: [
-      '🧠 Der Import unterscheidet Zutaten und Zubereitungsschritte deutlich zuverlässiger – auch ohne Überschriften oder wenn Screenshots beides durcheinanderwerfen.',
+      '🧠 Der Import unterscheidet Zutaten und Zubereitungsschritte deutlich zuverlässiger – auch ohne Überschriften, wenn Screenshots beides durcheinanderwerfen oder Schritte mit „Schritt 1“, „SCHRITT 2/5“ usw. beschriftet sind.',
       '⚖️ Mengen werden besser erkannt und direkt in die Felder eingetragen: z. B. „Mehl (200 g)“, „Butter: 50 g“, „eine halbe Zitrone“, „1 gehäufter EL“, „200 g / 7 oz“ – und Mengen, die in einer eigenen Zeile über oder unter der Zutat stehen.',
       '✏️ Neue Einheit „Eigenes …“: Einheit frei benennen, z. B. Blätter, Stangen, Tropfen oder Würfel. Der Import nutzt sie automatisch für solche Angaben; auch Einkaufsliste, PDF und Portionsregler kennen sie.'
     ]
