@@ -8,6 +8,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 (function (ns) {
   'use strict';
 
+  const T = s => (ns.I18n ? ns.I18n.tr(s) : s);
   const D = ns.Data, UI = ns.UI;
   const $ = UI.$, esc = UI.esc;
   const native = name => window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers[name];
@@ -132,7 +133,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (u.startsWith('custom:')) { parts.push(`${UI.fmtNum(roundNice(v, 'custom'))} ${u.slice(7)}`.trim()); return; }
       const unit = D.UNIT_BY_ID[u];
       const n = roundNice(v, u);
-      parts.push(`${UI.fmtNum(n)} ${n > 1 && unit.plural ? unit.plural : unit.label}`);
+      parts.push(`${UI.fmtNum(n)} ${ns.I18n ? ns.I18n.unitLabel(unit, n) : (n > 1 && unit.plural ? unit.plural : unit.label)}`);
     });
     if (!parts.length) return it.toTaste ? 'nach Bedarf' : '';
     return parts.join(' + ');
@@ -166,7 +167,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       <li class="plan-item">
         <span class="plan-thumb tone-${toneOf(r.id)}">${r.image ? `<img src="${r.image}" alt="">` : esc(r.title.charAt(0).toUpperCase())}</span>
         <span class="plan-info">
-          <button type="button" class="plan-title" data-plan-open="${esc(r.id)}">${esc(r.title)}</button>
+          <button type="button" class="plan-title" data-plan-open="${esc(r.id)}" translate="no">${esc(r.title)}</button>
           <span class="plan-serv">
             <button type="button" class="step-btn" data-plan-serv="${esc(r.id)}" data-delta="-1" aria-label="Weniger Portionen">−</button>
             <span>${servings} ${servings === 1 ? 'Portion' : 'Portionen'}</span>
@@ -199,7 +200,7 @@ window.EasyKitchen = window.EasyKitchen || {};
               <label>
                 <input type="checkbox" data-shop-key="${esc(i.key)}" ${checked ? 'checked' : ''}>
                 <span class="shop-text">
-                  <span class="shop-main"><strong>${esc(i.name)}</strong>${amt ? `<span class="shop-amt">${esc(amt)}</span>` : ''}</span>
+                  <span class="shop-main"><strong translate="no">${esc(i.name)}</strong>${amt ? `<span class="shop-amt">${esc(amt)}</span>` : ''}</span>
                   ${i.recipes.length > 1 ? `<span class="shop-for">für ${i.recipes.map(esc).join(', ')}</span>` : ''}
                 </span>
               </label>
@@ -222,7 +223,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       <li>
         <label class="${D.isPlanned(r.id) ? 'on' : ''}">
           <input type="checkbox" data-plan-toggle="${esc(r.id)}" ${D.isPlanned(r.id) ? 'checked' : ''}>
-          <span class="picker-title">${r.watch ? '<span class="picker-star">★</span>' : ''}${esc(r.title)}</span>
+          <span class="picker-title" translate="no">${r.watch ? '<span class="picker-star">★</span>' : ''}${esc(r.title)}</span>
           <span class="picker-meta">${esc(UI.fmtTime(r.time))}</span>
         </label>
       </li>`).join('') : '<li class="picker-empty muted">Keine passenden Rezepte.</li>';
@@ -240,16 +241,16 @@ window.EasyKitchen = window.EasyKitchen || {};
   function itemLine(i) {
     const amt = amountText(i);
     if (!amt) return i.name;
-    if (amt === 'nach Bedarf') return `${i.name} (nach Bedarf)`;
+    if (amt === 'nach Bedarf') return `${i.name} ${T('(nach Bedarf)')}`;
     return `${amt} ${i.name}`;
   }
 
   function listText() {
     const plan = D.getPlan();
-    const lines = ['🛒 Einkaufsliste (EasyKitchen)', ''];
-    lines.push('Für: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(', '), '');
+    const lines = [T('🛒 Einkaufsliste (EasyKitchen)'), ''];
+    lines.push(T('Für: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(', ')), '');
     grouped().forEach(g => {
-      lines.push(`${g.icon} ${g.label}`);
+      lines.push(`${g.icon} ${T(g.label)}`);
       g.items.forEach(i => lines.push(`${D.isChecked(i.key) ? '☑' : '☐'} ${itemLine(i)}`));
       lines.push('');
     });
@@ -260,7 +261,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const text = listText();
     const h = native('nativeShareText');
     if (h) { h.postMessage({ text }); return; }
-    if (navigator.share) { navigator.share({ title: 'Einkaufsliste', text }).catch(() => {}); return; }
+    if (navigator.share) { navigator.share({ title: T('Einkaufsliste'), text }).catch(() => {}); return; }
     copyList();
   }
 
@@ -314,7 +315,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     ctx.font = `400 28px ${FONT}`;
-    const recipeLines = wrapLines(ctx, 'Für: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(' · '), inner);
+    const recipeLines = wrapLines(ctx, T('Für: ' + plan.map(p => `${p.recipe.title} (${p.servings} P.)`).join(' · ')), inner);
     const itemCount = groups.reduce((n, g) => n + g.items.length, 0);
     const H = PAD + 40 + 76 + recipeLines.length * 38 + 30 + groups.length * (64 + 14) + itemCount * ROW + 70 + PAD;
     canvas.width = W; canvas.height = H;
@@ -329,11 +330,11 @@ window.EasyKitchen = window.EasyKitchen || {};
     ctx.fillStyle = '#2c7a51'; ctx.font = `700 26px ${FONT}`;
     ctx.fillText('EasyKitchen', PAD, y);
     ctx.fillStyle = '#a59fb4'; ctx.font = `400 26px ${FONT}`; ctx.textAlign = 'right';
-    ctx.fillText(new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }), W - PAD, y);
+    ctx.fillText(new Date().toLocaleDateString(ns.I18n ? ns.I18n.locale() : 'de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }), W - PAD, y);
     ctx.textAlign = 'left';
     y += 40;
     ctx.fillStyle = '#2d2838'; ctx.font = `800 60px ${FONT}`;
-    ctx.fillText('Einkaufsliste', PAD, y);
+    ctx.fillText(T('Einkaufsliste'), PAD, y);
     y += 76;
     ctx.fillStyle = '#6c6580'; ctx.font = `400 28px ${FONT}`;
     recipeLines.forEach(l => { ctx.fillText(l, PAD, y); y += 38; });
@@ -344,7 +345,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       ctx.fillStyle = bg;
       ctx.beginPath(); ctx.roundRect(PAD, y, inner, 52, 14); ctx.fill();
       ctx.fillStyle = fg; ctx.font = `700 28px ${FONT}`; ctx.textBaseline = 'middle';
-      ctx.fillText(`${g.icon}  ${g.label}`, PAD + 20, y + 27);
+      ctx.fillText(`${g.icon}  ${T(g.label)}`, PAD + 20, y + 27);
       ctx.textAlign = 'right'; ctx.font = `600 24px ${FONT}`;
       ctx.fillText(String(g.items.length), W - PAD - 20, y + 27);
       ctx.textAlign = 'left';
@@ -369,7 +370,7 @@ window.EasyKitchen = window.EasyKitchen || {};
           x += ctx.measureText(amt).width + 14;
         }
         ctx.font = `400 30px ${FONT}`; ctx.fillStyle = done ? '#a59fb4' : '#2d2838';
-        const name = amt === 'nach Bedarf' ? `${i.name} (nach Bedarf)` : i.name;
+        const name = amt === 'nach Bedarf' ? `${i.name} ${T('(nach Bedarf)')}` : i.name;
         const shown = fitText(ctx, name, W - PAD - x);
         ctx.fillText(shown, x, cy);
         if (done) {
@@ -387,7 +388,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
     y += 26;
     ctx.fillStyle = '#a59fb4'; ctx.font = `400 22px ${FONT}`; ctx.textAlign = 'center';
-    ctx.fillText('Erstellt mit EasyKitchen', W / 2, y);
+    ctx.fillText(T('Erstellt mit EasyKitchen'), W / 2, y);
     ctx.textAlign = 'left';
     return canvas.toDataURL('image/png');
   }
@@ -465,8 +466,8 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function printHTML() {
     const plan = D.getPlan();
-    const date = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Einkaufsliste</title><style>
+    const date = new Date().toLocaleDateString(ns.I18n ? ns.I18n.locale() : 'de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Einkaufsliste</title><style>
       @page { size: A4; margin: 0; }
       body { margin: 0; font: 11pt/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #2d2838; }
       .page { padding: 40px 50px 20px; }
@@ -486,12 +487,13 @@ window.EasyKitchen = window.EasyKitchen || {};
     </style></head><body><div class="page">
       <div class="brand"><div><img src="img/icon-128.png" alt="">EasyKitchen</div><span>Einkaufsliste · ${esc(date)}</span></div>
       <h1>Einkaufsliste für die Woche</h1>
-      <div class="recipes">${plan.map(p => `${esc(p.recipe.title)} (${p.servings} P.)`).join(' · ')}</div>
+      <div class="recipes" translate="no">${plan.map(p => `${esc(p.recipe.title)} (${p.servings} ${ns.I18n && ns.I18n.lang === 'en' ? 'serv.' : 'P.'})`).join(' · ')}</div>
       <div class="cols">
         ${grouped().map(g => `<section><h2>${esc(g.label)}</h2><ul>${g.items.map(i => `
-          <li class="${D.isChecked(i.key) ? 'done' : ''}"><span class="box"></span><span class="amt">${esc(amountText(i))}</span><span>${esc(i.name)}</span></li>`).join('')}</ul></section>`).join('')}
+          <li class="${D.isChecked(i.key) ? 'done' : ''}"><span class="box"></span><span class="amt">${esc(amountText(i))}</span><span translate="no">${esc(i.name)}</span></li>`).join('')}</ul></section>`).join('')}
       </div>
     </div></body></html>`;
+    return ns.I18n ? ns.I18n.translateHTML(html) : html;
   }
 
   function exportPDF(action) {

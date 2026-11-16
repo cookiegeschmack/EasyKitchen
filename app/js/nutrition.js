@@ -267,7 +267,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function fmt(v, unit) {
     const n = unit === 'kcal' ? Math.round(v) : (v < 10 ? Math.round(v * 10) / 10 : Math.round(v));
-    return `${n.toLocaleString('de-DE')} ${unit}`;
+    return `${n.toLocaleString(ns.I18n ? ns.I18n.locale() : 'de-DE')} ${unit}`;
   }
 
   /** Balkendiagramm (App) – pro Portion, Balken = Anteil am Tagesbedarf. */

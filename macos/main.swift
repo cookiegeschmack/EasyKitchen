@@ -26,6 +26,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     var pendingOpenURLs: [URL] = []
     var pdfJobs: [PDFJob] = []
 
+    /// Oberflächensprache ("de" / "en"), von der Web-App gesetzt; ohne Wahl wie das System.
+    var appLanguage: String {
+        if let l = UserDefaults.standard.string(forKey: "appLanguage"), l == "de" || l == "en" { return l }
+        return systemLanguage
+    }
+    var systemLanguage: String { (Locale.preferredLanguages.first ?? "de").lowercased().hasPrefix("de") ? "de" : "en" }
+    func L(_ de: String, _ en: String) -> String { appLanguage == "en" ? en : de }
+
     var currentAppVersion: String {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0.0"
     }
@@ -66,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     func updateBootstrapScript(on controller: WKUserContentController?, with json: String?) {
         guard let controller = controller else { return }
         controller.removeAllUserScripts()
-        var bootstrap = "window.__EK_NATIVE__ = true; window.__EK_VERSION__ = \(jsStringLiteral(currentAppVersion));"
+        var bootstrap = "window.__EK_NATIVE__ = true; window.__EK_VERSION__ = \(jsStringLiteral(currentAppVersion)); window.__EK_SYSTEM_LANG = \(jsStringLiteral(systemLanguage));"
         if let saved = json ?? loadSavedState() {
             bootstrap += "window.__EK_NATIVE_STATE__ = \(jsStringLiteral(saved));"
         }
@@ -95,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         for name in ["nativeStorage", "nativeExport", "nativeImport", "nativeCheckUpdate",
                      "nativePerformUpdate", "nativeInstallLocalDMG", "nativeOpenURL",
                      "nativeExportPDF", "nativeShareFile", "nativeRecognize",
-                     "nativeShareText", "nativeShareImage", "nativeSetAppearance"] {
+                     "nativeShareText", "nativeShareImage", "nativeSetAppearance", "nativeSetLanguage"] {
             controller.add(self, name: name)
         }
         updateBootstrapScript(on: controller, with: nil)
@@ -158,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let err = (st["error"] as? String) ?? ""
             if !expected.isEmpty && compareVersions(current, expected) >= 0 {
                 try? fm.removeItem(at: keptUpdateDMG)
-                toast("Update auf v\(current) installiert ✓")
+                toast(L("Update auf v\(current) installiert ✓", "Updated to v\(current) ✓"))
                 return
             }
             if ok, !dest.isEmpty, dest != here, let v = appVersion(atPath: dest), compareVersions(v, current) > 0 {
@@ -166,22 +174,109 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 return
             }
             if !expected.isEmpty {
-                offerManualInstall(reason: err.isEmpty ? "Die neue Version v\(expected) konnte nicht eingesetzt werden." : err)
+                offerManualInstall(reason: err.isEmpty ? L("Die neue Version v\(expected) konnte nicht eingesetzt werden.", "The new version v\(expected) could not be installed.") : err)
                 return
             }
         }
         // Alte Kopie gestartet (z. B. direkt aus der DMG oder aus „Downloads“), obwohl im Programme-Ordner eine neuere liegt
-        if here != standardAppPath, let v = appVersion(atPath: standardAppPath), compareVersions(v, current) > 0 {
+        if here != standardAppPath, let v = appVersion(atPath: standardAppPath),
+           compareVersions(v, current) > 0 || (isTemporaryLocation && compareVersions(v, current) == 0) {
             offerOpenNewerCopy(path: standardAppPath, version: v)
+            return
+        }
+        // Direkt aus der DMG / aus „Downloads“ gestartet → anbieten, in den Programme-Ordner zu verschieben
+        if isTemporaryLocation && !UserDefaults.standard.bool(forKey: "skipMoveToApplications") {
+            offerMoveToApplications()
+        }
+    }
+
+    /// Läuft die App von einem Ort, an dem sie nicht bleiben sollte (DMG, App Translocation, Downloads)?
+    var isTemporaryLocation: Bool {
+        let p = Bundle.main.bundlePath
+        let downloads = (FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? "/nonexistent") + "/"
+        return p.hasPrefix("/Volumes/") || p.contains("/AppTranslocation/") || p.hasPrefix(downloads)
+    }
+
+    func offerMoveToApplications() {
+        let alert = NSAlert()
+        alert.messageText = L("In den Programme-Ordner verschieben?", "Move to Applications folder?")
+        alert.informativeText = L("\(APP_NAME) läuft gerade direkt aus dem Installationsfenster (DMG) bzw. aus „Downloads“ – also wie von einem externen Laufwerk.\n\nDamit \(APP_NAME) wie ein normales Programm funktioniert (Launchpad, Spotlight, Updates), sollte es im Programme-Ordner liegen. Ein Klick genügt: \(APP_NAME) wird dorthin kopiert und neu gestartet. Deine Rezepte bleiben erhalten.",
+                                  "\(APP_NAME) is currently running directly from the installer window (DMG) or from “Downloads” – like from an external drive.\n\nTo work like a normal app (Launchpad, Spotlight, updates), \(APP_NAME) should be in the Applications folder. One click is enough: \(APP_NAME) is copied there and restarted. Your recipes are kept.")
+        alert.addButton(withTitle: L("In Programme verschieben", "Move to Applications"))
+        alert.addButton(withTitle: L("Nicht jetzt", "Not Now"))
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = L("Nicht mehr fragen", "Don’t ask again")
+        let resp = alert.runModal()
+        if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "skipMoveToApplications") }
+        guard resp == .alertFirstButtonReturn else { return }
+
+        let dest = standardAppPath
+        let check = canReplaceApp(at: dest)
+        if !check.ok {
+            let a = NSAlert()
+            a.alertStyle = .warning
+            a.messageText = L("Verschieben nicht möglich", "Moving not possible")
+            a.informativeText = check.reason + L("\n\nZiehe \(APP_NAME) bitte selbst in den Programme-Ordner – das Finder-Fenster öffnet sich gleich.", "\n\nPlease drag \(APP_NAME) into the Applications folder yourself – the Finder window opens now.")
+            a.runModal()
+            NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications"))
+            return
+        }
+
+        let src = Bundle.main.bundlePath
+        let pid = ProcessInfo.processInfo.processIdentifier
+        // Aus einer DMG gestartet → Laufwerk danach auswerfen
+        var volume = ""
+        if src.hasPrefix("/Volumes/") {
+            let comps = src.split(separator: "/")
+            if comps.count >= 2 { volume = "/Volumes/" + comps[1] }
+        }
+        let scriptPath = (NSTemporaryDirectory() as NSString).appendingPathComponent("easykitchen_move_\(pid).sh")
+        let script = """
+        #!/bin/bash
+        exec </dev/null >/dev/null 2>&1
+        for i in $(seq 1 80); do kill -0 \(pid) 2>/dev/null || break; sleep 0.1; done
+        DEST="\(dest)"
+        TMP="/Applications/.\(APP_NAME)-neu-$$.app"
+        BAK="/Applications/.\(APP_NAME)-alt-$$.app"
+        rm -rf "$TMP"
+        if /usr/bin/ditto "\(src)" "$TMP"; then
+          /usr/bin/xattr -cr "$TMP" 2>/dev/null || true
+          if [ -e "$DEST" ]; then mv "$DEST" "$BAK" || { rm -rf "$TMP"; /usr/bin/open "\(src)"; exit 0; }; fi
+          if mv "$TMP" "$DEST"; then rm -rf "$BAK"; else mv "$BAK" "$DEST" 2>/dev/null; fi
+        fi
+        rm -rf "$TMP" 2>/dev/null
+        if [ -d "$DEST" ]; then
+          /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" 2>/dev/null || true
+          /usr/bin/open "$DEST"
+          \(volume.isEmpty ? "" : "sleep 2; /usr/bin/hdiutil detach \"\(volume)\" -quiet || true")
+        else
+          /usr/bin/open "\(src)"
+        fi
+        rm -f "\(scriptPath)"
+        """
+        do {
+            try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/bin/bash")
+            p.arguments = [scriptPath]
+            p.standardInput = FileHandle.nullDevice
+            p.standardOutput = FileHandle.nullDevice
+            p.standardError = FileHandle.nullDevice
+            try p.run()
+            quitForUpdate()
+        } catch {
+            showAlert(L("Verschieben fehlgeschlagen: ", "Moving failed: ") + error.localizedDescription)
         }
     }
 
     func offerOpenNewerCopy(path: String, version: String) {
         let alert = NSAlert()
-        alert.messageText = "Neuere Version gefunden"
-        alert.informativeText = "Du hast eine ältere Kopie von \(APP_NAME) (v\(currentAppVersion)) geöffnet:\n\(Bundle.main.bundlePath)\n\nDie aktuelle Version v\(version) liegt hier:\n\(path)\n\nTipp: Öffne \(APP_NAME) künftig aus dem Programme-Ordner und lösche die alte Kopie bzw. wirf die DMG aus."
-        alert.addButton(withTitle: "Neue Version öffnen")
-        alert.addButton(withTitle: "Später")
+        alert.messageText = L("Neuere Version gefunden", "Newer version found")
+        alert.informativeText = L("Du hast eine ältere Kopie von \(APP_NAME) (v\(currentAppVersion)) geöffnet:\n\(Bundle.main.bundlePath)\n\nDie aktuelle Version v\(version) liegt hier:\n\(path)\n\nTipp: Öffne \(APP_NAME) künftig aus dem Programme-Ordner und lösche die alte Kopie bzw. wirf die DMG aus.",
+                                  "You opened an older copy of \(APP_NAME) (v\(currentAppVersion)):\n\(Bundle.main.bundlePath)\n\nThe current version v\(version) is here:\n\(path)\n\nTip: Open \(APP_NAME) from the Applications folder from now on and delete the old copy or eject the DMG.")
+        alert.addButton(withTitle: L("Neue Version öffnen", "Open New Version"))
+        alert.addButton(withTitle: L("Später", "Later"))
         if alert.runModal() == .alertFirstButtonReturn {
             let cfg = NSWorkspace.OpenConfiguration()
             cfg.createsNewApplicationInstance = true
@@ -198,11 +293,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let hasDMG = FileManager.default.fileExists(atPath: self.keptUpdateDMG.path)
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "Update konnte nicht automatisch installiert werden"
-            alert.informativeText = reason + "\n\nSo klappt es:\n• Manuell installieren: Das Update-Fenster öffnet sich und \(APP_NAME) wird beendet. Ziehe dann „\(APP_NAME)“ auf „Applications“ und wähle „Ersetzen“.\n• Oder dauerhaft erlauben: Systemeinstellungen → Datenschutz & Sicherheit → App-Verwaltung → \(APP_NAME) einschalten. Danach klappen Updates wieder automatisch.\n\nDeine Rezepte bleiben in jedem Fall erhalten."
-            alert.addButton(withTitle: hasDMG ? "Manuell installieren" : "Download-Seite öffnen")
-            alert.addButton(withTitle: "Systemeinstellungen öffnen")
-            alert.addButton(withTitle: "Abbrechen")
+            alert.messageText = L("Update konnte nicht automatisch installiert werden", "The update could not be installed automatically")
+            alert.informativeText = reason + self.L("\n\nSo klappt es:\n• Manuell installieren: Das Update-Fenster öffnet sich und \(APP_NAME) wird beendet. Ziehe dann „\(APP_NAME)“ auf „Applications“ und wähle „Ersetzen“.\n• Oder dauerhaft erlauben: Systemeinstellungen → Datenschutz & Sicherheit → App-Verwaltung → \(APP_NAME) einschalten. Danach klappen Updates wieder automatisch.\n\nDeine Rezepte bleiben in jedem Fall erhalten.",
+                                                    "\n\nHow to fix it:\n• Install manually: the update window opens and \(APP_NAME) quits. Then drag “\(APP_NAME)” onto “Applications” and choose “Replace”.\n• Or allow it permanently: System Settings → Privacy & Security → App Management → turn on \(APP_NAME). Updates will then work automatically again.\n\nYour recipes are kept in any case.")
+            alert.addButton(withTitle: hasDMG ? self.L("Manuell installieren", "Install Manually") : self.L("Download-Seite öffnen", "Open Download Page"))
+            alert.addButton(withTitle: self.L("Systemeinstellungen öffnen", "Open System Settings"))
+            alert.addButton(withTitle: self.L("Abbrechen", "Cancel"))
             switch alert.runModal() {
             case .alertFirstButtonReturn:
                 if hasDMG {
@@ -226,12 +322,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let fm = FileManager.default
         let parent = (dest as NSString).deletingLastPathComponent
         if !fm.isWritableFile(atPath: parent) {
-            return (false, "Für den Ordner „\(parent)“ fehlen die Schreibrechte (z. B. weil \(APP_NAME) von einem anderen Benutzer installiert wurde).")
+            return (false, L("Für den Ordner „\(parent)“ fehlen die Schreibrechte (z. B. weil \(APP_NAME) von einem anderen Benutzer installiert wurde).", "There is no write permission for the folder “\(parent)” (e.g. because \(APP_NAME) was installed by another user)."))
         }
         if fm.fileExists(atPath: dest) {
             let probe = (dest as NSString).appendingPathComponent("Contents/.easykitchen-update-test")
             if !fm.createFile(atPath: probe, contents: Data()) {
-                return (false, "macOS erlaubt \(APP_NAME) nicht, sich selbst zu aktualisieren (Schutz „App-Verwaltung“).")
+                return (false, L("macOS erlaubt \(APP_NAME) nicht, sich selbst zu aktualisieren (Schutz „App-Verwaltung“).", "macOS does not allow \(APP_NAME) to update itself (“App Management” protection)."))
             }
             try? fm.removeItem(atPath: probe)
         }
@@ -284,7 +380,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                     try content.write(to: url, atomically: true, encoding: .utf8)
                     self.toast(toastText)
                 } catch {
-                    self.showAlert("Datei konnte nicht gespeichert werden: \(error.localizedDescription)")
+                    self.showAlert(self.L("Datei konnte nicht gespeichert werden: ", "The file could not be saved: ") + error.localizedDescription)
                 }
             }
         case "nativeImport":
@@ -300,7 +396,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                     let content = try String(contentsOf: url, encoding: .utf8)
                     self.webView.evaluateJavaScript("\(JS_NS).App && \(JS_NS).App.importBackupJSON(\(self.jsStringLiteral(content)))")
                 } catch {
-                    self.showAlert("Backup konnte nicht gelesen werden: \(error.localizedDescription)")
+                    self.showAlert(self.L("Backup konnte nicht gelesen werden: ", "The backup could not be read: ") + error.localizedDescription)
                 }
             }
         case "nativeExportPDF":
@@ -314,7 +410,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 try content.write(to: url, atomically: true, encoding: .utf8)
                 share(items: [url])
             } catch {
-                showAlert("Datei konnte nicht vorbereitet werden: \(error.localizedDescription)")
+                showAlert(L("Datei konnte nicht vorbereitet werden: ", "The file could not be prepared: ") + error.localizedDescription)
             }
         case "nativeShareText":
             if let text = (message.body as? [String: Any])?["text"] as? String { share(items: [text]) }
@@ -326,15 +422,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             if (dict["action"] as? String) == "share" {
                 let url = tempFileURL(filename)
                 do { try data.write(to: url); share(items: [url]) }
-                catch { showAlert("Bild konnte nicht vorbereitet werden: \(error.localizedDescription)") }
+                catch { showAlert(L("Bild konnte nicht vorbereitet werden: ", "The image could not be prepared: ") + error.localizedDescription) }
             } else {
                 let panel = NSSavePanel()
                 panel.nameFieldStringValue = filename
                 panel.allowedContentTypes = [.png]
                 panel.beginSheetModal(for: window) { [weak self] resp in
                     guard let self = self, resp == .OK, let url = panel.url else { return }
-                    do { try data.write(to: url); self.toast("Bild gespeichert ✓"); NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                    catch { self.showAlert("Bild konnte nicht gespeichert werden: \(error.localizedDescription)") }
+                    do { try data.write(to: url); self.toast(self.L("Bild gespeichert ✓", "Image saved ✓")); NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                    catch { self.showAlert(self.L("Bild konnte nicht gespeichert werden: ", "The image could not be saved: ") + error.localizedDescription) }
+                }
+            }
+        case "nativeSetLanguage":
+            if let d = message.body as? [String: Any], let lang = d["lang"] as? String, lang == "de" || lang == "en" {
+                if UserDefaults.standard.string(forKey: "appLanguage") != lang {
+                    UserDefaults.standard.set(lang, forKey: "appLanguage")
+                    buildMenu()
                 }
             }
         case "nativeSetAppearance":
@@ -621,7 +724,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             for f in files {
                 let name = (f["name"] as? String) ?? "Datei"
                 guard let b64 = f["base64"] as? String, let data = Data(base64Encoded: b64) else {
-                    results.append(["name": name, "error": "Datei konnte nicht gelesen werden."])
+                    results.append(["name": name, "error": L("Datei konnte nicht gelesen werden.", "The file could not be read.")])
                     continue
                 }
                 results.append(self.recognizeFile(name: name, data: data))
@@ -633,7 +736,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     func recognizeFile(name: String, data: Data) -> [String: Any] {
         let isPDF = name.lowercased().hasSuffix(".pdf") || data.starts(with: [0x25, 0x50, 0x44, 0x46])
         if isPDF {
-            guard let doc = PDFDocument(data: data) else { return ["name": name, "error": "PDF konnte nicht geöffnet werden."] }
+            guard let doc = PDFDocument(data: data) else { return ["name": name, "error": L("PDF konnte nicht geöffnet werden.", "The PDF could not be opened.")] }
             // Von EasyKitchen erzeugte PDF? → exakte Rezeptdaten statt Texterkennung
             if let kw = doc.documentAttributes?[PDFDocumentAttribute.keywordsAttribute] {
                 let words: [String] = (kw as? [String]) ?? [(kw as? String) ?? ""]
@@ -659,7 +762,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         }
         guard let img = NSImage(data: data),
               let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return ["name": name, "error": "Dieses Bildformat wird nicht unterstützt."]
+            return ["name": name, "error": L("Dieses Bildformat wird nicht unterstützt.", "This image format is not supported.")]
         }
         return ["name": name, "kind": "text", "text": ocr(cgImage: cg)]
     }
@@ -886,7 +989,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
     /// Lädt die DMG über die gh CLI herunter. Gibt true zurück, wenn die Installation gestartet wurde.
     func downloadViaGH(tagName: String, percent: Int) -> Bool {
         guard let ghPath = findGHBinary() else { return false }
-        progress("downloading", percent, "Lade neue \(APP_NAME).dmg über GitHub CLI (gh) herunter…")
+        progress("downloading", percent, L("Lade neue \(APP_NAME).dmg über GitHub CLI (gh) herunter…", "Downloading new \(APP_NAME).dmg via GitHub CLI (gh)…"))
         let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("easykitchen_gh_\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
@@ -896,7 +999,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let res = runProcess(ghPath, args: args, timeout: 60)
         let dmg = tmpDir.appendingPathComponent("\(APP_NAME).dmg")
         guard res.exitCode == 0, FileManager.default.fileExists(atPath: dmg.path) else { return false }
-        progress("downloading", 82, "Download abgeschlossen ✓ Bereite Installation vor…")
+        progress("downloading", 82, L("Download abgeschlossen ✓ Bereite Installation vor…", "Download complete ✓ Preparing installation…"))
         installFromDMGOrApp(sourceURL: dmg, deleteSourceAfter: true)
         return true
     }
@@ -915,7 +1018,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let auth = self.resolveGitHubToken(customToken: customToken)
             self.pendingUpdateTag = tagName
             self.pendingUpdateToken = auth.token
-            self.progress("downloading", 10, "Verbinde mit GitHub Release & starte Download…")
+            self.progress("downloading", 10, self.L("Verbinde mit GitHub Release & starte Download…", "Connecting to GitHub release & starting download…"))
 
             let targetUrlStr = (!assetApiUrl.isEmpty && auth.token != nil) ? assetApiUrl : assetBrowserUrl
             guard let downloadURL = URL(string: targetUrlStr) else {
@@ -944,7 +1047,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         let totalMB = totalBytesExpectedToWrite > 0 ? Double(totalBytesExpectedToWrite) / 1_048_576 : 3
         let rawPct = totalBytesExpectedToWrite > 0 ? Int(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 82) : 45
         progress("downloading", max(5, min(82, rawPct)),
-                 String(format: "Lade \(APP_NAME).dmg herunter (%.1f / %.1f MB)…", loadedMB, totalMB))
+                 String(format: L("Lade \(APP_NAME).dmg herunter (%.1f / %.1f MB)…", "Downloading \(APP_NAME).dmg (%.1f / %.1f MB)…"), loadedMB, totalMB))
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
@@ -971,7 +1074,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             if self.downloadViaGH(tagName: tagName, percent: 50) { return }
-            self.progress("error", 0, "Automatischer Download nicht möglich (\(reason)). Nutze unten „Direkt herunterladen“ und danach „Heruntergeladene DMG installieren“.")
+            self.progress("error", 0, self.L("Automatischer Download nicht möglich (\(reason)). Nutze unten „Direkt herunterladen“ und danach „Heruntergeladene DMG installieren“.", "Automatic download not possible (\(reason)). Use “Download directly” below and then “Install downloaded DMG”."))
         }
     }
 
@@ -984,7 +1087,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             }
         }
         let panel = NSOpenPanel()
-        panel.title = "Heruntergeladene \(APP_NAME).dmg (oder \(APP_NAME).app) zum Aktualisieren wählen"
+        panel.title = L("Heruntergeladene \(APP_NAME).dmg (oder \(APP_NAME).app) zum Aktualisieren wählen", "Choose the downloaded \(APP_NAME).dmg (or \(APP_NAME).app) to update")
         panel.prompt = "Installieren & neu starten"
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -1007,14 +1110,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             if sourceURL.pathExtension.lowercased() == "app" {
                 sourceAppPath = sourceURL.path
             } else {
-                self.progress("mounting", 86, "Öffne Disk-Image im Hintergrund…")
+                self.progress("mounting", 86, self.L("Öffne Disk-Image im Hintergrund…", "Opening disk image in the background…"))
                 mountPoint = (NSTemporaryDirectory() as NSString).appendingPathComponent("easykitchen_mnt_\(UUID().uuidString)")
                 try? FileManager.default.createDirectory(atPath: mountPoint, withIntermediateDirectories: true)
                 let attach = self.runProcess("/usr/bin/hdiutil", args: [
                     "attach", sourceURL.path, "-mountpoint", mountPoint, "-nobrowse", "-readonly", "-noautoopen", "-quiet"
                 ])
                 if attach.exitCode != 0 {
-                    self.progress("error", 0, "Disk-Image konnte nicht geöffnet werden: \(attach.stderr)")
+                    self.progress("error", 0, self.L("Disk-Image konnte nicht geöffnet werden: ", "The disk image could not be opened: ") + attach.stderr)
                     return
                 }
                 let candidate = (mountPoint as NSString).appendingPathComponent("\(APP_NAME).app")
@@ -1028,11 +1131,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
 
             guard !sourceAppPath.isEmpty && FileManager.default.fileExists(atPath: sourceAppPath) else {
                 if !mountPoint.isEmpty { _ = self.runProcess("/usr/bin/hdiutil", args: ["detach", mountPoint, "-force", "-quiet"]) }
-                self.progress("error", 0, "Keine gültige \(APP_NAME).app im Update-Paket gefunden.")
+                self.progress("error", 0, self.L("Keine gültige \(APP_NAME).app im Update-Paket gefunden.", "No valid \(APP_NAME).app found in the update package."))
                 return
             }
 
-            self.progress("installing", 96, "Aktualisiere \(APP_NAME).app & starte neu…")
+            self.progress("installing", 96, self.L("Aktualisiere \(APP_NAME).app & starte neu…", "Updating \(APP_NAME).app & restarting…"))
 
             let currentBundlePath = Bundle.main.bundleURL.path
             // Aus DMG (/Volumes) oder von macOS „verschoben“ gestartet (App Translocation, schreibgeschützt)
@@ -1052,7 +1155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 self.keepDMGForManualInstall(sourceURL)
                 if !mountPoint.isEmpty { _ = self.runProcess("/usr/bin/hdiutil", args: ["detach", mountPoint, "-force", "-quiet"]) }
                 if deleteSourceAfter { try? FileManager.default.removeItem(at: sourceURL) }
-                self.progress("error", 0, "Automatische Installation nicht möglich – siehe Hinweisfenster.")
+                self.progress("error", 0, self.L("Automatische Installation nicht möglich – siehe Hinweisfenster.", "Automatic installation not possible – see the message window."))
                 self.offerManualInstall(reason: check.reason)
                 return
             }
@@ -1097,15 +1200,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
               exit 0
             }
             rm -rf "$TMP" 2>/dev/null
-            /usr/bin/ditto "\(sourceAppPath)" "$TMP" 2>"$ERRF" || fail "Die neue Version konnte nicht kopiert werden."
-            [ "$(/usr/bin/defaults read "$TMP/Contents/Info" CFBundleShortVersionString 2>/dev/null)" = "$NEWVER" ] || fail "Die neue Version ist unvollständig."
+            /usr/bin/ditto "\(sourceAppPath)" "$TMP" 2>"$ERRF" || fail "\(self.L("Die neue Version konnte nicht kopiert werden.", "The new version could not be copied."))"
+            [ "$(/usr/bin/defaults read "$TMP/Contents/Info" CFBundleShortVersionString 2>/dev/null)" = "$NEWVER" ] || fail "\(self.L("Die neue Version ist unvollständig.", "The new version is incomplete."))"
             /usr/bin/xattr -cr "$TMP" 2>/dev/null || true
             if [ -e "$DEST" ]; then
-              mv "$DEST" "$BAK" 2>"$ERRF" || fail "macOS hat das Ersetzen der alten Version blockiert."
+              mv "$DEST" "$BAK" 2>"$ERRF" || fail "\(self.L("macOS hat das Ersetzen der alten Version blockiert.", "macOS blocked replacing the old version."))"
             fi
-            if ! mv "$TMP" "$DEST" 2>"$ERRF"; then mv "$BAK" "$DEST" 2>/dev/null; fail "Die neue Version konnte nicht eingesetzt werden."; fi
+            if ! mv "$TMP" "$DEST" 2>"$ERRF"; then mv "$BAK" "$DEST" 2>/dev/null; fail "\(self.L("Die neue Version konnte nicht eingesetzt werden.", "The new version could not be installed."))"; fi
             rm -rf "$BAK" 2>/dev/null
-            [ "$(/usr/bin/defaults read "$DEST/Contents/Info" CFBundleShortVersionString 2>/dev/null)" = "$NEWVER" ] || fail "Nach dem Ersetzen wurde eine falsche Version gefunden."
+            [ "$(/usr/bin/defaults read "$DEST/Contents/Info" CFBundleShortVersionString 2>/dev/null)" = "$NEWVER" ] || fail "\(self.L("Nach dem Ersetzen wurde eine falsche Version gefunden.", "A wrong version was found after replacing."))"
             touch "$DEST"
             /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" 2>/dev/null || true
             status true ""
@@ -1132,7 +1235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 try updater.run()
                 self.quitForUpdate()
             } catch {
-                self.progress("error", 0, "Update-Installation fehlgeschlagen: \(error.localizedDescription)")
+                self.progress("error", 0, self.L("Update-Installation fehlgeschlagen: ", "Update installation failed: ") + error.localizedDescription)
             }
         }
     }
@@ -1181,47 +1284,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
 
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Über \(APP_NAME)", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        appMenu.addItem(withTitle: "Nach Updates suchen…", action: #selector(checkForUpdatesMenuAction), keyEquivalent: "u")
+        appMenu.addItem(withTitle: L("Über \(APP_NAME)", "About \(APP_NAME)"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: L("Nach Updates suchen…", "Check for Updates…"), action: #selector(checkForUpdatesMenuAction), keyEquivalent: "u")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Datenordner im Finder zeigen", action: #selector(revealData), keyEquivalent: "")
+        appMenu.addItem(withTitle: L("Datenordner im Finder zeigen", "Show Data Folder in Finder"), action: #selector(revealData), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "\(APP_NAME) ausblenden", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "\(APP_NAME) beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L("\(APP_NAME) ausblenden", "Hide \(APP_NAME)"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: L("\(APP_NAME) beenden", "Quit \(APP_NAME)"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
         let fileItem = NSMenuItem()
-        let fileMenu = NSMenu(title: "Ablage")
-        fileMenu.addItem(withTitle: "Neues Rezept", action: #selector(newRecipeMenuAction), keyEquivalent: "n")
+        let fileMenu = NSMenu(title: L("Ablage", "File"))
+        fileMenu.addItem(withTitle: L("Neues Rezept", "New Recipe"), action: #selector(newRecipeMenuAction), keyEquivalent: "n")
         fileItem.submenu = fileMenu
         main.addItem(fileItem)
 
         let editItem = NSMenuItem()
-        let editMenu = NSMenu(title: "Bearbeiten")
-        editMenu.addItem(withTitle: "Widerrufen", action: Selector(("undo:")), keyEquivalent: "z")
-        editMenu.addItem(withTitle: "Wiederholen", action: Selector(("redo:")), keyEquivalent: "Z")
+        let editMenu = NSMenu(title: L("Bearbeiten", "Edit"))
+        editMenu.addItem(withTitle: L("Widerrufen", "Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: L("Wiederholen", "Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
         editMenu.addItem(.separator())
-        editMenu.addItem(withTitle: "Ausschneiden", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "Kopieren", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "Einsetzen", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(withTitle: "Alles auswählen", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(withTitle: L("Ausschneiden", "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L("Kopieren", "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L("Einsetzen", "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L("Alles auswählen", "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = editMenu
         main.addItem(editItem)
 
         let viewItem = NSMenuItem()
-        let viewMenu = NSMenu(title: "Darstellung")
-        viewMenu.addItem(withTitle: "Neu laden", action: #selector(reloadPage), keyEquivalent: "r")
-        let fs = NSMenuItem(title: "Vollbild umschalten", action: #selector(toggleFullScreenAction), keyEquivalent: "f")
+        let viewMenu = NSMenu(title: L("Darstellung", "View"))
+        viewMenu.addItem(withTitle: L("Neu laden", "Reload"), action: #selector(reloadPage), keyEquivalent: "r")
+        let fs = NSMenuItem(title: L("Vollbild umschalten", "Toggle Full Screen"), action: #selector(toggleFullScreenAction), keyEquivalent: "f")
         fs.keyEquivalentModifierMask = [.control, .command]
         viewMenu.addItem(fs)
         viewItem.submenu = viewMenu
         main.addItem(viewItem)
 
         let windowItem = NSMenuItem()
-        let windowMenu = NSMenu(title: "Fenster")
-        windowMenu.addItem(withTitle: "Minimieren", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(withTitle: "Schließen", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        let windowMenu = NSMenu(title: L("Fenster", "Window"))
+        windowMenu.addItem(withTitle: L("Minimieren", "Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: L("Schließen", "Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         windowItem.submenu = windowMenu
         main.addItem(windowItem)
 

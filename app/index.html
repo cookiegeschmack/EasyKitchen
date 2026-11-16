@@ -163,14 +163,14 @@
           <span class="field-label">Zeiten</span>
           <div class="time-grid">
             <div class="time-cell">
-              <label for="ed-prep">Vorbereitung</label>
+              <label for="ed-prep" data-en="Prep time">Vorbereitung</label>
               <div class="inline-range">
                 <input type="range" id="ed-prep-range" min="0" max="120" step="5" value="0" aria-label="Vorbereitungszeit Regler">
                 <div class="num-unit"><input type="number" id="ed-prep" class="input input-num" min="0" max="1440" value="0"><span>Min</span></div>
               </div>
             </div>
             <div class="time-cell">
-              <label for="ed-cook">Zubereitung</label>
+              <label for="ed-cook" data-en="Cook time">Zubereitung</label>
               <div class="inline-range">
                 <input type="range" id="ed-cook-range" min="0" max="180" step="5" value="30" aria-label="Zubereitungszeit Regler">
                 <div class="num-unit"><input type="number" id="ed-cook" class="input input-num" min="0" max="1440" value="30"><span>Min</span></div>
@@ -290,6 +290,15 @@
             <button type="button" data-theme-choice="system" role="radio">🖥 System</button>
             <button type="button" data-theme-choice="light" role="radio">☀︎ Hell</button>
             <button type="button" data-theme-choice="dark" role="radio">☾ Dunkel</button>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h3>Sprache <span class="muted small lang-hint" translate="no">· Language</span></h3>
+          <p class="muted">Sprache der Oberfläche. Rezepte bleiben so, wie du sie geschrieben hast.</p>
+          <div class="segmented theme-seg" id="lang-seg" role="radiogroup" aria-label="Sprache">
+            <button type="button" data-lang-choice="auto" role="radio">🖥 Wie System</button>
+            <button type="button" data-lang-choice="de" role="radio" translate="no">🇩🇪 Deutsch</button>
+            <button type="button" data-lang-choice="en" role="radio" translate="no">🇬🇧 English</button>
           </div>
         </section>
         <section class="settings-section">
@@ -455,6 +464,8 @@
   <div class="toast" id="toast" role="status"></div>
 
   <script src="js/data.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/foodnames.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/nutrition.js"></script>
   <script src="js/classify.js"></script>
