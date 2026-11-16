@@ -881,6 +881,12 @@ window.EasyKitchen = window.EasyKitchen || {};
       UI.closeModal('leave-modal', true);
       UI.closeModal('editor-modal', true);
     });
+    $('ed-save-draft').addEventListener('click', () => {
+      const d = editorData();
+      if (editorIsEmpty(d)) { UI.toast('Bitte zuerst etwas eintragen – ein leerer Entwurf wird nicht gespeichert.'); $('ed-title').focus(); return; }
+      saveEditorAsDraft();
+      UI.closeModal('editor-modal', true);
+    });
     $('leave-continue').addEventListener('click', () => { UI.closeModal('leave-modal', true); $('ed-title').focus(); });
 
     // Entwürfe
