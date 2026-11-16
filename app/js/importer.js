@@ -733,10 +733,10 @@ window.EasyKitchen = window.EasyKitchen || {};
       const d = dupes[Number(b.dataset.compare)];
       ns.Compare.open(d.r, d.match, {
         inFile: d.inFile,
-        onImported: rec => {
+        onImported: (rec, mode) => {
           const li = b.closest('li');
           li.classList.remove('is-dupe'); li.classList.add('is-imported');
-          li.querySelector('.import-item-text').innerHTML = `<strong>${esc(rec.title)}</strong><span class="muted">✓ Als neues Rezept importiert</span>`;
+          li.querySelector('.import-item-text').innerHTML = `<strong>${esc(rec.title)}</strong><span class="muted">${mode === 'replace' ? '✓ Vorhandenes Rezept ersetzt' : '✓ Als neues Rezept importiert'}</span>`;
           b.remove();
         }
       });
