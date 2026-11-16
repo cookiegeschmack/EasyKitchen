@@ -97,6 +97,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const all = D.getRecipes();
     $('count-fav').textContent = all.filter(r => r.watch).length;
     ns.Planner.renderBadge();
+    renderDraftsButton();
     renderDaily();
 
     const { list, terms } = filteredRecipes();
@@ -261,7 +262,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   // Editor
   // =========================================================================
 
-  const editor = { id: null, image: '', effort: 1, cost: 1, course: 'main', taste: 'savory', diet: 'auto' };
+  const editor = { id: null, draftId: null, initial: '', image: '', effort: 1, cost: 1, course: 'main', taste: 'savory', diet: 'auto' };
 
   function unitOptions(selected) {
     return D.UNITS.map(u => `<option value="${u.id}" ${u.id === selected ? 'selected' : ''}>${esc(u.label)}</option>`).join('');
@@ -423,9 +424,13 @@ window.EasyKitchen = window.EasyKitchen || {};
    */
   function openEditor(id, opts) {
     opts = opts || {};
-    const r = id ? D.getRecipe(id) : (opts.draft || null);
-    editor.id = id && r ? r.id : null;
-    $('editor-title').textContent = id ? 'Rezept bearbeiten' : (opts.draft ? 'Importiertes Rezept prüfen' : 'Neues Rezept');
+    const existing = id ? D.getRecipe(id) : null;
+    // Entwurf/Import füllt den Editor vor; bei Entwürfen eines vorhandenen Rezepts bleibt dessen ID erhalten
+    const r = opts.draft ? { ingredients: [], ...opts.draft } : existing;
+    editor.id = existing ? existing.id : null;
+    editor.draftId = opts.draftId || null;
+    $('editor-title').textContent = opts.draftId ? 'Entwurf weiter bearbeiten'
+      : existing ? 'Rezept bearbeiten' : (opts.draft ? 'Importiertes Rezept prüfen' : 'Neues Rezept');
     $('editor-notice').hidden = !opts.source;
     $('editor-source').textContent = opts.source || '';
     if ($('editor-notice').querySelector('details')) $('editor-notice').querySelector('details').open = false;
@@ -447,9 +452,77 @@ window.EasyKitchen = window.EasyKitchen || {};
     $('ing-list').innerHTML = '';
     (r && r.ingredients.length ? r.ingredients : [null]).forEach(i => addIngredientRow(i));
     updateEditorNutrition();
+    // Ausgangsstand merken → beim Verlassen nur nachfragen, wenn sich etwas geändert hat.
+    // Ein frisch importierter Entwurf gilt immer als ungespeichert.
+    editor.initial = opts.draft && !opts.draftId ? '' : JSON.stringify(editorData());
     UI.closeModal('detail-modal');
     UI.openModal('editor-modal');
     $('ed-title').focus();
+  }
+
+  /** Aktueller Inhalt des Editors (für Entwürfe und den Änderungs-Vergleich). */
+  function editorData() {
+    return {
+      title: $('ed-title').value.trim(),
+      image: editor.image || '',
+      prepTime: Number($('ed-prep').value) || 0,
+      cookTime: Number($('ed-cook').value) || 0,
+      effort: editor.effort, cost: editor.cost,
+      course: editor.course, taste: editor.taste, diet: editor.diet,
+      servings: Number($('ed-servings').value) || 1,
+      ingredients: readIngredients(),
+      steps: $('ed-steps').value,
+      watch: $('ed-watch').checked
+    };
+  }
+
+  function editorIsEmpty(d) { return !d.title && !d.ingredients.length && !d.steps.trim() && !d.image; }
+
+  function editorIsDirty() {
+    const d = editorData();
+    if (editorIsEmpty(d) && !editor.id) return false;
+    return JSON.stringify(d) !== editor.initial;
+  }
+
+  function saveEditorAsDraft(silent) {
+    const d = D.saveDraft({ id: editor.draftId, sourceId: editor.id, data: editorData() });
+    editor.draftId = d.id;
+    renderDraftsButton();
+    if (!silent) UI.toast('Als Entwurf gespeichert – oben unter „Entwürfe“ ✓');
+    return d;
+  }
+
+  // ---------- Entwürfe ----------
+  function renderDraftsButton() {
+    const n = D.getDrafts().length;
+    $('drafts-btn').hidden = !n;
+    $('drafts-count').textContent = n;
+  }
+
+  function fmtSavedAt(ts) {
+    const d = new Date(ts), now = new Date();
+    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === now.toDateString() ? `heute, ${time}` : `${d.toLocaleDateString('de-DE')}, ${time}`;
+  }
+
+  function openDrafts() {
+    const list = D.getDrafts();
+    $('drafts-list').innerHTML = list.length ? list.map(d => {
+      const src = d.sourceId && D.getRecipe(d.sourceId);
+      const n = (d.data.ingredients || []).length;
+      return `
+        <li class="draft-item">
+          <div class="draft-info">
+            <strong>${esc(d.data.title || 'Ohne Titel')}</strong>
+            <span class="muted">${src ? `Änderungen an „${esc(src.title)}“ · ` : 'Neues Rezept · '}${n} ${n === 1 ? 'Zutat' : 'Zutaten'} · ${esc(fmtSavedAt(d.savedAt))}</span>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-ghost btn-sm" data-draft-del="${esc(d.id)}">Löschen</button>
+            <button type="button" class="btn btn-primary btn-sm" data-draft-open="${esc(d.id)}">Weiter bearbeiten</button>
+          </div>
+        </li>`;
+    }).join('') : '<li class="muted">Keine Entwürfe vorhanden.</li>';
+    UI.openModal('drafts-modal');
   }
 
   function saveEditor(e) {
@@ -486,7 +559,8 @@ window.EasyKitchen = window.EasyKitchen || {};
       steps: D.cleanSteps($('ed-steps').value),
       watch: $('ed-watch').checked
     });
-    UI.closeModal('editor-modal');
+    if (editor.draftId) { D.deleteDraft(editor.draftId); editor.draftId = null; renderDraftsButton(); }
+    UI.closeModal('editor-modal', true);
     UI.toast(existing ? 'Rezept aktualisiert ✓' : 'Rezept gespeichert ✓');
     renderList();
     openDetail(saved.id);
@@ -785,6 +859,57 @@ window.EasyKitchen = window.EasyKitchen || {};
           renderList();
         }
       }
+    });
+
+    // Editor: beim Wegklicken / Esc / ✕ / Abbrechen nachfragen, statt Eingaben zu verlieren
+    UI.setCloseGuard('editor-modal', () => {
+      if (!editorIsDirty()) return true;
+      const r = editor.id && D.getRecipe(editor.id);
+      $('leave-text').textContent = r
+        ? `Deine Änderungen an „${r.title}“ sind noch nicht gespeichert. Als Entwurf sichern? Du findest ihn dann oben unter „Entwürfe“.`
+        : 'Möchtest du deine Eingaben als Entwurf speichern? Du findest ihn dann oben unter „Entwürfe“ und kannst später weitermachen.';
+      UI.openModal('leave-modal');
+      $('leave-draft').focus();
+      return false;
+    });
+    $('leave-draft').addEventListener('click', () => {
+      saveEditorAsDraft();
+      UI.closeModal('leave-modal', true);
+      UI.closeModal('editor-modal', true);
+    });
+    $('leave-discard').addEventListener('click', () => {
+      UI.closeModal('leave-modal', true);
+      UI.closeModal('editor-modal', true);
+    });
+    $('ed-save-draft').addEventListener('click', () => {
+      const d = editorData();
+      if (editorIsEmpty(d)) { UI.toast('Bitte zuerst etwas eintragen – ein leerer Entwurf wird nicht gespeichert.'); $('ed-title').focus(); return; }
+      saveEditorAsDraft();
+      UI.closeModal('editor-modal', true);
+    });
+    $('leave-continue').addEventListener('click', () => { UI.closeModal('leave-modal', true); $('ed-title').focus(); });
+
+    // Entwürfe
+    $('drafts-btn').addEventListener('click', openDrafts);
+    $('drafts-list').addEventListener('click', e => {
+      const op = e.target.closest('[data-draft-open]');
+      if (op) {
+        const d = D.getDraft(op.dataset.draftOpen);
+        if (!d) return;
+        UI.closeModal('drafts-modal');
+        openEditor(d.sourceId && D.getRecipe(d.sourceId) ? d.sourceId : null, { draft: d.data, draftId: d.id });
+        return;
+      }
+      const del = e.target.closest('[data-draft-del]');
+      if (del && confirm('Diesen Entwurf wirklich löschen?')) {
+        D.deleteDraft(del.dataset.draftDel);
+        renderDraftsButton();
+        if (D.getDrafts().length) openDrafts(); else UI.closeModal('drafts-modal');
+      }
+    });
+    // App wird beendet, während der Editor offen ist → Eingaben automatisch als Entwurf sichern
+    window.addEventListener('pagehide', () => {
+      if (!$('editor-modal').hidden && editorIsDirty()) { saveEditorAsDraft(true); D.flushNow(); }
     });
 
     // Neues Rezept, Import, Teilen

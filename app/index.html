@@ -20,6 +20,7 @@
 
     <div class="topbar-actions">
       <button type="button" class="icon-btn" id="settings-btn" title="Einstellungen" aria-label="Einstellungen">⚙︎</button>
+      <button type="button" class="btn btn-secondary drafts-btn" id="drafts-btn" hidden title="Nicht fertig gespeicherte Rezepte">📝<span class="drafts-btn-label">Entwürfe</span><span class="plan-count" id="drafts-count">0</span></button>
       <button type="button" class="btn btn-secondary plan-btn" id="plan-btn" title="Wocheneinkaufsplaner: Rezepte für die Woche wählen und Einkaufsliste erstellen"><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M2.5 3h2l1.6 9.2a1.5 1.5 0 0 0 1.5 1.3h6.9a1.5 1.5 0 0 0 1.5-1.2L17.5 6.5H5.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="16.6" r="1.2" fill="currentColor"/><circle cx="14.2" cy="16.6" r="1.2" fill="currentColor"/></svg><span class="plan-btn-label">Wochenplan</span><span class="plan-count" id="plan-count" hidden>0</span></button>
       <button type="button" class="btn btn-secondary" id="import-recipe-btn" title="Rezept aus Screenshot, PDF, Text oder EasyKitchen-Datei importieren">⤓ Importieren</button>
       <button type="button" class="btn btn-primary" id="new-recipe-btn">＋ Neues Rezept</button>
@@ -261,6 +262,7 @@
 
       <div class="modal-foot">
         <button type="button" class="btn btn-ghost" data-close="editor-modal">Abbrechen</button>
+        <button type="button" class="btn btn-secondary" id="ed-save-draft" title="Unfertiges Rezept zwischenspeichern – oben unter „Entwürfe“ weitermachen">📝 Als Entwurf speichern</button>
         <button type="submit" class="btn btn-primary">Rezept speichern</button>
       </div>
     </form>
@@ -398,6 +400,46 @@
     </div>
   </div>
 
+  <!-- Nachfrage beim Verlassen des Editors -->
+  <div class="modal" id="leave-modal" hidden>
+    <div class="modal-backdrop" data-close="leave-modal"></div>
+    <div class="modal-card modal-small">
+      <div class="modal-head">
+        <h2>Rezept noch nicht gespeichert</h2>
+      </div>
+      <div class="modal-body">
+        <p class="muted" id="leave-text">Möchtest du deine Eingaben als Entwurf speichern? Du findest ihn dann oben unter „Entwürfe“ und kannst später weitermachen.</p>
+      </div>
+      <div class="modal-foot spread">
+        <button type="button" class="btn btn-danger-ghost" id="leave-discard">Verwerfen</button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-ghost" id="leave-continue">Weiter bearbeiten</button>
+          <button type="button" class="btn btn-primary" id="leave-draft">Als Entwurf speichern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entwürfe -->
+  <div class="modal" id="drafts-modal" hidden>
+    <div class="modal-backdrop" data-close="drafts-modal"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>📝 Entwürfe</h2>
+        <button type="button" class="icon-btn" data-close="drafts-modal" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <ul class="drafts-list" id="drafts-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vergleich: importiertes vs. vorhandenes Rezept -->
+  <div class="modal" id="compare-modal" hidden>
+    <div class="modal-backdrop" data-close="compare-modal"></div>
+    <div class="modal-card modal-compare" id="compare-card"></div>
+  </div>
+
   <!-- Was ist neu -->
   <div class="modal" id="whatsnew-modal" hidden>
     <div class="modal-backdrop"></div>
@@ -421,6 +463,7 @@
   <script src="js/share.js"></script>
   <script src="js/importer.js"></script>
   <script src="js/planner.js"></script>
+  <script src="js/compare.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

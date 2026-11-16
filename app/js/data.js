@@ -39,7 +39,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   const SHARE_FORMAT = 'easykitchen-recipes';
 
-  let state = { version: 1, recipes: [], settings: {}, plan: { items: [], checked: [] }, updatedAt: 0 };
+  let state = { version: 1, recipes: [], settings: {}, plan: { items: [], checked: [] }, drafts: [], updatedAt: 0 };
   const listeners = [];
   let pendingNative = null;
   let nativeTimer = null;
@@ -65,6 +65,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     state.recipes = state.recipes.map(normalizeRecipe);
     if (!state.settings || typeof state.settings !== 'object') state.settings = {};
     state.plan = normalizePlan(state.plan);
+    state.drafts = (Array.isArray(state.drafts) ? state.drafts : []).filter(d => d && d.id && d.data);
   }
 
   function persist() {
@@ -223,14 +224,17 @@ window.EasyKitchen = window.EasyKitchen || {};
    * Doppelt = gleiche Kennung ODER gleicher Name (auch doppelt innerhalb der Datei).
    */
   function splitImport(list) {
-    const ids = new Set(state.recipes.map(r => r.id));
-    const titles = new Set(state.recipes.map(r => titleKey(r.title)));
+    const byId = new Map(), byTitle = new Map();
+    state.recipes.forEach(r => { byId.set(r.id, { r, inFile: false }); if (!byTitle.has(titleKey(r.title))) byTitle.set(titleKey(r.title), { r, inFile: false }); });
     const fresh = [], dupes = [];
     list.forEach(r => {
       const tk = titleKey(r.title);
-      if (ids.has(r.id) || titles.has(tk)) { dupes.push(r); return; }
+      const hit = byId.get(r.id) || byTitle.get(tk);
+      // Doppelte behalten ihr Gegenstück (vorhandenes Rezept bzw. früherer Eintrag derselben Datei) für den Vergleich
+      if (hit) { dupes.push({ r, match: hit.r, inFile: hit.inFile }); return; }
       fresh.push(r);
-      ids.add(r.id); titles.add(tk);
+      byId.set(r.id, { r, inFile: true });
+      if (!byTitle.has(tk)) byTitle.set(tk, { r, inFile: true });
     });
     return { fresh, dupes };
   }
@@ -426,6 +430,27 @@ window.EasyKitchen = window.EasyKitchen || {};
     return lines.join('\n');
   }
 
+  // ---------- Entwürfe (nicht gespeicherte Rezepte aus dem Editor) ----------
+  function getDrafts() {
+    return state.drafts.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+  }
+  function getDraft(id) { return state.drafts.find(d => d.id === id) || null; }
+  /** Speichert/aktualisiert einen Entwurf. sourceId = bearbeitetes Rezept (null = neues Rezept). */
+  function saveDraft(draft) {
+    const d = { id: draft.id || ('d_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
+      sourceId: draft.sourceId || null, savedAt: Date.now(), data: draft.data || {} };
+    const i = state.drafts.findIndex(x => x.id === d.id);
+    if (i >= 0) state.drafts[i] = d; else state.drafts.push(d);
+    persist();
+    return d;
+  }
+  function deleteDraft(id) {
+    state.drafts = state.drafts.filter(d => d.id !== id);
+    persist();
+  }
+  /** Sofort auf die Festplatte schreiben (z. B. beim Beenden der App). */
+  function flushNow() { clearTimeout(nativeTimer); flushNative(); }
+
   // ---------- Wocheneinkaufsplaner ----------
 
   function normalizePlan(p) {
@@ -489,7 +514,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   ns.Data = {
     norm, stem, fixUnitMixup, cleanSteps, stripStepNumber, splitInlineSteps,
-    getServingsPref, setServingsPref,
+    getServingsPref, setServingsPref, getDrafts, getDraft, saveDraft, deleteDraft, flushNow,
     getPlan, isPlanned, togglePlan, setPlanServings, clearPlan, isChecked, toggleChecked, clearChecked,
     UNITS, UNIT_BY_ID, EFFORT, COST,
     SHARE_FORMAT, init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,

@@ -490,11 +490,13 @@ window.EasyKitchen = window.EasyKitchen || {};
     UI.toast(found ? `Rezept erkannt (${found} Zutaten) – bitte kurz prüfen` : 'Text übernommen – bitte Zutaten prüfen und ergänzen');
   }
 
-  function importItem(r, dupe) {
+  function importItem(r, dupe, idx) {
+    const dupeText = dupe && (dupe.inFile ? 'Doppelt in dieser Datei – wird übersprungen' : 'Schon vorhanden – wird übersprungen');
     return `
-      <li class="${dupe ? 'is-dupe' : ''}">
+      <li class="${dupe ? 'is-dupe' : ''}" ${dupe ? `data-dupe-idx="${idx}"` : ''}>
         ${r.image ? `<img src="${r.image}" alt="">` : `<div class="import-noimg">${esc(r.title.charAt(0).toUpperCase())}</div>`}
-        <div><strong>${esc(r.title)}</strong><span class="muted">${dupe ? 'Schon vorhanden – wird übersprungen' : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span></div>
+        <div class="import-item-text"><strong>${esc(r.title)}</strong><span class="muted">${dupe ? dupeText : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span></div>
+        ${dupe ? `<button type="button" class="btn btn-secondary btn-sm" data-compare="${idx}">Unterschiede ansehen</button>` : ''}
       </li>`;
   }
 
@@ -514,18 +516,32 @@ window.EasyKitchen = window.EasyKitchen || {};
         <button type="button" class="icon-btn" data-close="import-confirm" aria-label="Schließen">✕</button>
       </div>
       <div class="modal-body">
-        ${n ? `<ul class="import-list">${fresh.map(r => importItem(r, false)).join('')}</ul>`
+        ${n ? `<ul class="import-list">${fresh.map(r => importItem(r, null)).join('')}</ul>`
             : `<p class="import-all-dupes">Alle ${dupes.length === 1 ? 'Rezepte dieser Datei sind' : `${dupes.length} Rezepte dieser Datei sind`} bereits in deiner Sammlung. Es wird nichts doppelt angelegt.</p>`}
         ${dupes.length ? `
-          <details class="import-dupes" ${n ? '' : 'open'}>
+          <details class="import-dupes" ${!n || dupes.length <= 3 ? 'open' : ''}>
             <summary>${dupes.length === 1 ? '1 Rezept ist' : `${dupes.length} Rezepte sind`} schon vorhanden und ${dupes.length === 1 ? 'wird' : 'werden'} übersprungen</summary>
-            <ul class="import-list">${dupes.map(r => importItem(r, true)).join('')}</ul>
+            <p class="import-dupes-hint muted">Unter „Unterschiede ansehen“ vergleichst du beide Fassungen und kannst sie trotzdem als neues Rezept übernehmen.</p>
+            <ul class="import-list">${dupes.map((d, i) => importItem(d.r, d, i)).join('')}</ul>
           </details>` : ''}
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-ghost" data-close="import-confirm">${n ? 'Abbrechen' : 'Schließen'}</button>
         ${n ? `<button type="button" class="btn btn-primary" id="import-confirm-btn">${n === 1 ? 'Importieren' : `${n} importieren`}</button>` : ''}
       </div>`;
+    // Doppelte vergleichen und auf Wunsch doch als neues Rezept übernehmen
+    $('import-confirm-card').querySelectorAll('[data-compare]').forEach(b => b.addEventListener('click', () => {
+      const d = dupes[Number(b.dataset.compare)];
+      ns.Compare.open(d.r, d.match, {
+        inFile: d.inFile,
+        onImported: rec => {
+          const li = b.closest('li');
+          li.classList.remove('is-dupe'); li.classList.add('is-imported');
+          li.querySelector('.import-item-text').innerHTML = `<strong>${esc(rec.title)}</strong><span class="muted">✓ Als neues Rezept importiert</span>`;
+          b.remove();
+        }
+      });
+    }));
     const btn = $('import-confirm-btn');
     if (btn) btn.addEventListener('click', () => {
       const res = D.importRecipes(fresh);

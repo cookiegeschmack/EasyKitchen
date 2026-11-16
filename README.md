@@ -46,6 +46,8 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Austausch zwischen EasyKitchen-Nutzern**: `.easykitchen`-Dateien per Doppelklick importieren (inkl. Foto). Bereits vorhandene Rezepte (gleicher Name oder gleiche Kennung) werden übersprungen – es kommen nur neue dazu. Auch von EasyKitchen erzeugte PDFs enthalten die Rezeptdaten und werden 1:1 importiert.
 - **Import aus anderen Quellen**: Screenshots, Fotos (PNG, JPG, HEIC, WebP …) und PDFs anderer Anbieter per „Importieren“, Drag & Drop, Einfügen (⌘V) oder „Öffnen mit → EasyKitchen“. Der Text wird lokal mit der macOS-Texterkennung gelesen und als Rezept vorausgefüllt – nur noch prüfen und speichern. Rezepttext lässt sich auch direkt einfügen.
 - **„Was ist neu“**: Nach jedem Update zeigt EasyKitchen einmalig, was dazugekommen ist (Einträge in `app/js/changelog.js`).
+- **Entwürfe**: Wer den Rezept-Editor mit ungespeicherten Eingaben verlässt (daneben klicken, Esc, Abbrechen), wird gefragt, ob ein Entwurf gespeichert werden soll. Entwürfe stehen oben unter „Entwürfe“; beim Beenden der App wird ein offener Editor automatisch gesichert.
+- **Doppelte Rezepte vergleichen**: Beim Import werden schon vorhandene Rezepte übersprungen. „Unterschiede ansehen“ zeigt beide Fassungen nebeneinander mit markierten Unterschieden; auf Wunsch wird das importierte als neues Rezept (gleicher oder eigener Name) übernommen.
 - **Backup**: Export/Import aller Rezepte inkl. Fotos als JSON (⚙︎ Einstellungen).
 - **Tastenkürzel**: `⌘N` neues Rezept, `⌘F` oder `/` Suche, `Esc` schließt Dialoge.
 
