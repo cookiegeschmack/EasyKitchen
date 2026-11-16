@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>de.ducanhhoenemann.easykitchen</string>
     <key>CFBundleVersion</key>
-    <string>1.6.1</string>
+    <string>1.6.2</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.6.1</string>
+    <string>1.6.2</string>
     <key>CFBundleExecutable</key>
     <string>EasyKitchen</string>
     <key>CFBundlePackageType</key>
