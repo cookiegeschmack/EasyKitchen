@@ -695,6 +695,19 @@ body.drop-target::after {
   .card-img { height: 170px; }
 }
 
+/* ---------- Neue Filter, Abzeichen & Portionsregler ---------- */
+.chip-toggle.active { background: var(--tone-mint); border-color: var(--tone-mint); color: var(--tone-mint-t); font-weight: 600; }
+.chip-toggle[data-toggle="protein"].active { background: var(--tone-sky); border-color: var(--tone-sky); color: var(--tone-sky-t); }
+.meta-veg { background: var(--tone-mint); color: var(--tone-mint-t); }
+.meta-protein { background: var(--tone-sky); color: var(--tone-sky-t); }
+.serv-ctrl { display: flex; align-items: center; gap: 8px; margin: -2px 0 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.serv-ctrl input[type="range"] { flex: 1; min-width: 80px; }
+.serv-ctrl .step-btn { width: 26px; height: 26px; font-size: 15px; }
+.serv-label { font-size: 13px; font-weight: 650; white-space: nowrap; min-width: 86px; }
+.serv-reset { font-size: 12px; white-space: nowrap; }
+.ing-table.scaled .ing-amt { color: var(--accent-text); font-weight: 600; }
+#ed-veg-hint { font-weight: 400; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; bottom: 26px; z-index: 300;

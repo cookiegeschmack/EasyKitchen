@@ -132,6 +132,10 @@ window.EasyKitchen = window.EasyKitchen || {};
         .filter(i => i.name),
       steps: String(r.steps || ''),
       watch: !!r.watch,
+      // Eigenschaften für Filter (leer = automatisch erkennen)
+      course: r.course === 'main' || r.course === 'side' ? r.course : null,
+      taste: r.taste === 'sweet' || r.taste === 'savory' ? r.taste : null,
+      diet: r.diet === 'veg' || r.diet === 'nonveg' ? r.diet : 'auto',
       createdAt: r.createdAt || Date.now(),
       updatedAt: r.updatedAt || Date.now()
     };
@@ -251,14 +255,73 @@ window.EasyKitchen = window.EasyKitchen || {};
       .filter(t => t.length >= 2 && !seen.has(t) && seen.add(t));
   }
 
+  // Endungen, die aus einer Zutat ein eigenständiges Produkt machen:
+  // „Tomaten|mark“, „Paprika|pulver“, „Zitronen|saft“, „Hähnchen|brühe“, „Reis|essig“ …
+  const PRODUCT_SUFFIXES = ['mark', 'pulver', 'saft', 'sauce', 'sosse', 'sose', 'bruhe', 'fond', 'essig', 'ol',
+    'starke', 'wein', 'gras', 'melisse', 'flocken', 'mus', 'ketchup', 'paste', 'sirup', 'nudel', 'mehl', 'kerne',
+    'korner', 'samen', 'chips', 'gewurz', 'aroma', 'likor', 'tee', 'würfel', 'wurfel', 'pesto', 'creme', 'aufstrich',
+    'schale', 'abrieb', 'konfiture', 'marmelade', 'gelee', 'granulat', 'extrakt', 'milch', 'butter', 'kase', 'reis'];
+  // Zusammengesetzte Wörter, die trotz gleicher Endung etwas anderes sind
+  const DISTINCT_COMPOUNDS = ['fruhlingszwiebel', 'lauchzwiebel', 'gewurzgurke', 'essiggurke', 'salzgurke',
+    'buttermilch', 'kokosmilch', 'mandelmilch', 'hafermilch', 'sojamilch', 'reismilch', 'kondensmilch', 'erdnussbutter',
+    'kakaobutter', 'muskatnuss', 'kokosnuss', 'sojasahne', 'hafersahne', 'kokossahne', 'kokosjoghurt', 'sojajoghurt',
+    'blumenkohl', 'rosenkohl', 'kohlrabi', 'sauerkraut', 'kokosflocken', 'kokosol', 'zuckerschote', 'zuckerschoten',
+    'paprikapulver', 'chilipulver', 'currypulver', 'knoblauchpulver', 'zwiebelpulver', 'backpulver', 'puddingpulver',
+    'vanillepuddingpulver', 'senfkorner', 'pfefferkorner', 'cashewmus', 'apfelmus', 'mandelmus', 'nussmus', 'sesammus'];
+  const LINKS = /^(en|n|es|s|e)/;   // Fugenelemente: Tomate-n-mark, Zitrone-n-gras, Hähnchen-s-…
+
+  function singular(w) {
+    if (w.length > 5) return w.replace(/(en|er|n|e|s)$/, '');
+    if (w.length > 4) return w.replace(/(n|e|s)$/, '');
+    return w;
+  }
+
+  /** Ist das Wort (zusammengesetzt) ein eigenständiges Produkt, obwohl es mit dem Suchwort beginnt? */
+  function isProductCompound(word, base) {
+    const raw = word.slice(base.length);
+    if (!raw) return false;
+    // mit und ohne Fugenelement prüfen („tomaten|sosse“, „reis|essig“, „kartoffel|starke“)
+    const rems = [raw, raw.replace(LINKS, '')];
+    return rems.some(rem => PRODUCT_SUFFIXES.some(sfx => rem.startsWith(sfx)));
+  }
+
+  function isDistinct(word) {
+    const sw = singular(word);
+    return DISTINCT_COMPOUNDS.some(d => word === d || sw === singular(d) || word.startsWith(d));
+  }
+
+  /** Passt ein Suchwort zu einem einzelnen Wort (Plural, Komposita – aber keine fremden Produkte)? */
+  const IRREGULAR = { eier: 'ei' };
+  function wordMatches(term, word) {
+    if (!word) return false;
+    if (word === term || (IRREGULAR[term] || term) === (IRREGULAR[word] || word)) return true;
+    const st = stem(term);
+    const bases = st.length >= 3 ? [term, st] : [term];
+    // Wortanfang: „zwiebel“ → „zwiebeln“, „zwiebelringe“ – aber nicht „tomaten|mark“
+    for (const b of bases) {
+      if (word.startsWith(b)) {
+        if (word.length - b.length <= 2) return true;                 // nur Plural/Endung
+        if (isDistinct(word)) return false;                            // z. B. „lauch|zwiebel“ für „lauch“
+        return !isProductCompound(word, b);
+      }
+    }
+    // Wortende: „kirschtomaten“ für „tomaten“, „rinderhackfleisch“ für „hackfleisch“ – aber nicht „frühlings|zwiebel“
+    if (term.length >= 4) {
+      const ws = singular(word);
+      if (bases.some(b => word.endsWith(b) || ws.endsWith(b))) return !isDistinct(word);
+    }
+    return false;
+  }
+
   function termMatches(term, text) {
     const t = norm(text);
     if (!t) return false;
-    if (t.includes(term)) return true;
-    const st = stem(term);
-    if (st.length >= 3 && t.includes(st)) return true;
+    if (term.includes(' ')) return t.includes(term);              // Wortgruppen wie „rote zwiebel“
+    const words = t.split(' ');
+    if (words.some(w => wordMatches(term, w))) return true;
     // Zutat steckt im Suchwort (z. B. Suche „Rinderhack“, Zutat „Hack“)
-    return t.length >= 3 && term.includes(t);
+    return words.some(w => w.length >= 4 && (term.endsWith(w) || term.startsWith(w)) &&
+      !isProductCompound(term, w) && !isDistinct(term));
   }
 
   /**
@@ -305,7 +368,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     const r = getRecipe(id);
     if (!r) return false;
     if (isPlanned(id)) state.plan.items = state.plan.items.filter(i => i.id !== id);
-    else state.plan.items.push({ id, servings: r.servings });
+    else state.plan.items.push({ id, servings: getServingsPref(id) });
     persist();
     return isPlanned(id);
   }
@@ -315,6 +378,23 @@ window.EasyKitchen = window.EasyKitchen || {};
     it.servings = clampInt(servings, 1, 50, it.servings);
     persist();
   }
+  // ---------- Portionspräferenz (pro Rezept, ändert das Rezept nicht) ----------
+  function getServingsPref(id) {
+    const r = getRecipe(id);
+    const map = state.settings.servingsPref || {};
+    const v = Number(map[id]);
+    return Number.isFinite(v) && v >= 1 ? v : (r ? r.servings : 2);
+  }
+  function setServingsPref(id, n) {
+    const r = getRecipe(id);
+    if (!r) return;
+    const map = { ...(state.settings.servingsPref || {}) };
+    n = clampInt(n, 1, 50, r.servings);
+    if (n === r.servings) delete map[id]; else map[id] = n;
+    state.settings.servingsPref = map;
+    persist();
+  }
+
   function clearPlan() { state.plan = { items: [], checked: [] }; persist(); }
   function isChecked(key) { return state.plan.checked.includes(key); }
   function toggleChecked(key) {
@@ -328,6 +408,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   ns.Data = {
     norm, stem,
+    getServingsPref, setServingsPref,
     getPlan, isPlanned, togglePlan, setPlanServings, clearPlan, isChecked, toggleChecked, clearChecked,
     UNITS, UNIT_BY_ID, EFFORT, COST,
     SHARE_FORMAT, init, getRecipes, getRecipe, saveRecipe, deleteRecipe, toggleWatch,
