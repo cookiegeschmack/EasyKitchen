@@ -61,7 +61,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   `;
 
   function recipeSection(r, iconSrc, dateStr) {
-    const steps = r.steps.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    const steps = D.cleanSteps(r.steps).split('\n').filter(Boolean);
     const servings = `${r.servings} ${r.servings === 1 ? 'Portion' : 'Portionen'}`;
     return `
       <section class="recipe">

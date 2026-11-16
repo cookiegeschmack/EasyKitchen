@@ -12,13 +12,15 @@ window.EasyKitchen = window.EasyKitchen || {};
   // Gewichte in g: stk, el, tl, bund, dose, pck, becher, glas, scheibe, zehe, handvoll, tasse; d = Dichte (g/ml)
   const DB = [
     // Fleisch & Wurst
-    ['rindfleisch|rind|rinderroulade|roulade|rindersteak|steak|rinderhuft|gulasch|rinderfilet|rinderbraten|tafelspitz', 150, 21, 0, 7, { stk: 180, scheibe: 170 }],
+    ['rindfleisch|rind|rindernacken|rinderbrust|rinderschulter|brisket|rinderwade|beinscheibe|rinderroulade|roulade|rindersteak|steak|rinderhuft|gulasch|rinderfilet|rinderbraten|tafelspitz', 150, 21, 0, 7, { stk: 180, scheibe: 170 }],
     ['hackfleisch|hack|gehacktes|gemischtes hack', 250, 18, 0, 20, { pck: 500 }],
     ['rinderhack|rinderhackfleisch', 210, 20, 0, 14, { pck: 500 }],
     ['schweinehack|mett', 270, 17, 0, 22, { pck: 500 }],
     ['hahnchenbrust|huhnerbrust|hahnchenbrustfilet|hahnchenfilet|putenbrust|putenschnitzel|putenfilet|hahnchengeschnetzeltes', 110, 23, 0, 1.5, { stk: 150 }],
     ['hahnchenschenkel|hahnchenkeule|huhnerschenkel|keule|unterschenkel', 190, 18, 0, 13, { stk: 200 }],
-    ['hahnchen|huhn|brathahnchen|pute', 170, 20, 0, 10, { stk: 1200 }],
+    // ganzes Huhn: Gewicht wie gekauft (mit Knochen, ca. 65 % essbar)
+    ['hahnchen|huhn|brathahnchen|maishahnchen|maishanchen|stubenkuken|suppenhuhn', 140, 16, 0, 8.5, { stk: 1200 }],
+    ['pute|putenfleisch', 150, 22, 0, 7, { stk: 300 }],
     ['schweinefleisch|schwein|schnitzel|schweineschnitzel|schweinefilet|kotelett|schweinenacken|nackensteak|schweinebauch', 160, 20, 0, 9, { stk: 150, scheibe: 150 }],
     ['lamm|lammfleisch|lammkeule', 200, 19, 0, 14, { stk: 200 }],
     ['speck|bacon|bauchspeck|schinkenspeck|speckwurfel|pancetta', 400, 13, 0, 39, { scheibe: 15, pck: 125 }],
@@ -118,6 +120,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     ['fenchel', 31, 1.2, 7, 0.2, { stk: 250 }],
     ['radieschen', 16, 0.7, 3.4, 0.1, { stk: 10, bund: 150 }],
     // Obst
+    ['nektarine|nektarinen|pfirsich|pfirsiche|aprikose|aprikosen|kirschen|kirsche|pflaume|pflaumen|zwetschgen', 45, 1, 10, 0.3, { stk: 140, handvoll: 80 }],
     ['apfel|apfel', 52, 0.3, 14, 0.2, { stk: 150 }],
     ['banane', 89, 1.1, 23, 0.3, { stk: 120 }],
     ['zitrone|limette', 29, 1.1, 9, 0.3, { stk: 100 }],
@@ -140,6 +143,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     ['balsamico|aceto balsamico|balsamessig', 88, 0.5, 17, 0, { el: 16, tl: 5, d: 1.06 }],
     ['pesto', 450, 5, 6, 45, { el: 15, tl: 5, glas: 190 }],
     ['currypaste', 100, 2, 10, 6, { el: 15, tl: 5 }],
+    ['mirin|sake|reiswein|shaoxing', 230, 0.3, 43, 0, { el: 18, tl: 6, d: 1.15 }],
     ['worcestersosse|worcestershire|fischsosse|fischsauce|austernsosse', 80, 3, 15, 0.5, { el: 16, tl: 5, d: 1.1 }],
     ['tahin|tahini|erdnussbutter|mandelmus', 600, 22, 15, 50, { el: 16, tl: 6 }],
     ['ajvar|tomatensosse|tomatensauce|pastasosse|salsa', 60, 1.5, 8, 2.5, { el: 15, glas: 350 }],
@@ -148,6 +152,11 @@ window.EasyKitchen = window.EasyKitchen || {};
     ['erdnusse|erdnuss', 590, 25, 12, 49, { el: 9, handvoll: 30 }],
     ['sesam|leinsamen|chiasamen|sonnenblumenkerne|kurbiskerne', 570, 20, 12, 48, { el: 9, tl: 3 }],
     ['pinienkerne', 670, 14, 13, 68, { el: 9, pck: 50 }],
+    ['kekse|keks|oreo|oreos|butterkeks|butterkekse|vollkornkeks|vollkornkekse|loffelbiskuit|loffelbiskuits|biskuit|cookies|cookie|amarettini|spekulatius|knusperkeks', 480, 6, 68, 20, { pck: 154, stk: 11, handvoll: 40 }],
+    ['puddingpulver|vanillepuddingpulver|vanillepudding pulver|sossenpulver|tortenguss', 350, 0.3, 86, 0.1, { pck: 37, el: 10 }],
+    ['kondensmilch|gezuckerte kondensmilch', 320, 8, 55, 8, { dose: 397, el: 20, d: 1.3 }],
+    ['crepe|crepes|pfannkuchen fertig', 220, 6, 30, 8, { stk: 50 }],
+    ['marzipan|nougat|nutella|nuss-nougat-creme|schokoaufstrich', 530, 6, 57, 31, { el: 20, tl: 7, glas: 400 }],
     ['schokolade|zartbitterschokolade|kuvertüre|kuvertüre|schokotropfen', 540, 6, 57, 31, { stk: 100, pck: 100 }],
     ['kakao|kakaopulver|backkakao', 360, 20, 11, 22, { el: 6, tl: 2 }],
     // Getränke & Flüssigkeiten
@@ -157,7 +166,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     ['bruhe|fond|gemusebruhe|rinderbruhe|huhnerbruhe|fleischbruhe|kalbsfond|wildfond|bratenfond|bouillon|gemusefond', 5, 0.5, 0.3, 0.2, { d: 1, tl: 3, el: 9, glas: 400 }],
     ['wasser|eiswasser|mineralwasser', 0, 0, 0, 0, { d: 1 }],
     // Würzmittel ≈ 0 (zählen als bekannt)
-    ['salz|pfeffer|meersalz|chiliflocken|cayennepfeffer|muskat|muskatnuss|zimt|kreuzkummel|kurkuma|curry|currypulver|oregano|majoran|lorbeer|lorbeerblatt|lorbeerblatter|nelken|piment|wacholder|wacholderbeeren|kummel|garam masala|gewurz|gewurze|kräuter der provence|krauter der provence|italienische krauter|vanille|vanilleschote|backpulver|natron|hefe|trockenhefe|gelatine|kuchengarn|zahnstocher|eis|eiswurfel|lebensmittelfarbe|brühwurfel|bruhwurfel|senfkorner|fenchelsamen|koriandersamen|anis|sternanis|kardamom|safran|knoblauchpulver|zwiebelpulver|chilipulver|rauchsalz|tabasco|sambal', 0, 0, 0, 0, { tl: 2, el: 6 }],
+    ['salz|pfeffer|meersalz|chiliflocken|cayennepfeffer|muskat|muskatnuss|zimt|kreuzkummel|kurkuma|curry|currypulver|oregano|majoran|lorbeer|lorbeerblatt|lorbeerblatter|nelken|piment|wacholder|wacholderbeeren|kummel|garam masala|gewurz|gewurze|kräuter der provence|krauter der provence|italienische krauter|vanille|vanilleschote|backpulver|natron|hefe|trockenhefe|gelatine|kuchengarn|zahnstocher|eis|eiswurfel|lebensmittelfarbe|brühwurfel|bruhwurfel|senfkorner|fenchelsamen|koriandersamen|anis|sternanis|kardamom|safran|knoblauchpulver|zwiebelpulver|chilipulver|rauchsalz|tabasco|sambal|maggi|maggi wurze|wurze|rub|bbq rub|gewurzmischung|seasoning|seasoning mix|five spice|furikake', 0, 0, 0, 0, { tl: 2, el: 6 }],
     ['tofu|räuchertofu|rauchertofu|seitan|tempeh', 130, 13, 2, 7.5, { pck: 200 }]
   ];
 
@@ -200,6 +209,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   }
 
   function gramsFor(ing, entry) {
+    ing = ns.Data.fixUnitMixup ? ns.Data.fixUnitMixup(ing) : ing;   // „500 l Milch“ → 500 ml
     const a = Number(ing.amount) || 0;
     const w = entry.w || {};
     const d = w.d || 1;

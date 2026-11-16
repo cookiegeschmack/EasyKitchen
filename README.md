@@ -34,7 +34,7 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Zeiten**: Vorbereitung und Zubereitung getrennt, die Gesamtzeit wird berechnet und als Tabelle angezeigt (App & PDF).
 - **Nährwerte (Richtwerte)**: Kalorien, Eiweiß, Kohlenhydrate und Fett pro Portion werden offline aus den Zutaten geschätzt (`app/js/nutrition.js`, ~180 gängige Zutaten) – als Balkendiagramm unten am Rezept und live im Editor, in der PDF kurz ganz unten. Unbekannte Zutaten werden als „nicht berücksichtigt“ ausgewiesen.
 - **Portionsregler**: In jedem Rezept die Portionen per Regler ändern – Mengen werden umgerechnet, die Wahl wird pro Rezept gemerkt (das Rezept bleibt unverändert).
-- **Eigenschaften**: Vegetarisch (aus den Zutaten), High Protein (≥ 20 g Eiweiß/Portion und ≥ 20 % der Kalorien), Hauptspeise/Nebenspeise und Süß/Salzig – automatisch erkannt, im Editor korrigierbar.
+- **Eigenschaften**: Vegetarisch (aus den Zutaten), High Protein (≥ 20 g Eiweiß/Portion und ≥ 20 % der Kalorien), Hauptspeise/Nebenspeise/Nachspeise und Süß/Salzig – automatisch erkannt, im Editor korrigierbar.
 - **Filter**: Vegetarisch, High Protein, Art (Haupt-/Nebenspeise), Geschmack (süß/salzig), Gesamtzeit (≤ 15 / 30 / 60 Min), Aufwand (einfach / mittel / aufwendig), Kosten (€ / €€ / €€€) und Sortierung.
 - **Wocheneinkaufsplaner** (🛒 oben): Rezepte für die Woche wählen, Portionen anpassen – daraus entsteht eine gemeinsame Einkaufsliste. Gleiche Zutaten werden zusammengefasst (g/kg, ml/l umgerechnet), nach Supermarkt-Bereichen sortiert und lassen sich abhaken, kopieren, teilen oder als PDF speichern.
 - **Design**: Grundfarbe Grün, hell in Pastellfarben oder dunkel – in den Einstellungen wählbar (System / Hell / Dunkel).
