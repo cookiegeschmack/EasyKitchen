@@ -7,6 +7,14 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.4.2',
+    date: '2026-11-16',
+    title: 'Flüssigere Updates',
+    items: [
+      '🔄 Updates laufen jetzt in einem Rutsch: Nach dem Bestätigen speichert EasyKitchen deine Rezepte, schließt sich, installiert die neue Version und startet genau einmal neu – kein hängendes oder doppeltes Fenster mehr.'
+    ]
+  },
+  {
     version: '1.4.1',
     date: '2026-11-16',
     title: 'Update-Hinweis live & keine doppelten Rezepte',
