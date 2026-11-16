@@ -279,5 +279,10 @@ window.EasyKitchen = window.EasyKitchen || {};
     UI.openModal('compare-modal');
   }
 
-  ns.Compare = { open, wordDiff, pairIngredients, pairSteps };
+  /** Anzahl der Unterschiede (für die Markierung in der Import-Liste). */
+  function countDiffs(a, b) {
+    try { buildTable(a, b); return diffCount; } catch (e) { return -1; }
+  }
+
+  ns.Compare = { open, countDiffs, wordDiff, pairIngredients, pairSteps };
 })(window.EasyKitchen);

@@ -7,6 +7,16 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.6.3',
+    date: '2026-11-16',
+    title: 'Zuverlässige Updates & Unterschiede auf einen Blick',
+    items: [
+      '🔄 Updates hängen nicht mehr in einer Schleife: Die neue Version wird erst daneben installiert und geprüft, bevor sie die alte ersetzt. Klappt das nicht (z. B. weil macOS das Ändern von Apps blockiert), bleibt die App intakt und erklärt, wie es weitergeht – inklusive manueller Installation mit einem Klick.',
+      '🧭 Wurde versehentlich eine alte Kopie geöffnet (z. B. aus der DMG oder „Downloads“), weist EasyKitchen darauf hin und öffnet auf Wunsch die aktuelle Version.',
+      '🔍 Beim Import siehst du sofort, welche schon vorhandenen Rezepte Unterschiede haben („● 3 Unterschiede“) und welche identisch sind („✓ identisch“) – Rezepte mit Unterschieden stehen oben.'
+    ]
+  },
+  {
     version: '1.6.2',
     date: '2026-11-16',
     title: 'Doppelte Rezepte ersetzen',

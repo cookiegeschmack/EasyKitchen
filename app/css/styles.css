@@ -752,9 +752,13 @@ body.drop-target::after {
 .import-list li .import-item-text { flex: 1; }
 .import-list li [data-compare] { flex-shrink: 0; }
 .import-list li.is-dupe { opacity: 1; }
-.import-list li.is-dupe img, .import-list li.is-dupe .import-noimg, .import-list li.is-dupe .import-item-text { opacity: .6; }
+.import-list li.is-dupe img, .import-list li.is-dupe .import-noimg, .import-list li.is-dupe .import-item-text > strong, .import-list li.is-dupe .import-item-text > .muted { opacity: .6; }
 .import-list li.is-imported { border-color: var(--accent); background: var(--accent-soft); }
 .import-dupes-hint { font-size: 12.5px; margin: 0 0 8px; }
+.import-dupes-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 0 14px; font-weight: 400; }
+.diff-badge { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; margin-top: 4px; padding: 2px 8px; border-radius: 10px; font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+.diff-badge.is-diff { background: var(--tone-butter); color: var(--tone-butter-t); }
+.diff-badge.is-same { background: var(--tone-mint); color: var(--tone-mint-t); }
 .modal-compare { max-width: 980px; }
 .cmp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .cmp-summary { margin: 0; font-weight: 600; font-size: 14px; }
