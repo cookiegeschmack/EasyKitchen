@@ -14,9 +14,10 @@ window.EasyKitchen = window.EasyKitchen || {};
   const SKIPPED_VER_KEY = 'easykitchen_skipped_update_version';
   const TOKEN_KEY = 'easykitchen_github_release_token';
   const NOTIFIED_KEY = 'easykitchen_update_notified_version';
-  const RECHECK_MS = 6 * 60 * 60 * 1000;   // bei laufender App alle 6 Stunden
+  const LIVE_MS = 10 * 60 * 1000;          // während die App läuft: alle 10 Minuten auf neue Releases prüfen
+  const FOCUS_MS = 5 * 60 * 1000;          // beim Zurückkehren ins Fenster, wenn die letzte Prüfung > 5 Min her ist
   const RETRY_MS = 5 * 60 * 1000;          // nach fehlgeschlagener Prüfung in 5 Minuten erneut
-  const auto = { lastCheck: 0, lastOk: false, pending: false, retryTimer: null, started: false };
+  const auto = { lastCheck: 0, lastOk: false, pending: false, retryTimer: null, started: false, reason: '' };
 
   const UI = ns.UI;
   const $ = UI.$;
@@ -116,7 +117,8 @@ window.EasyKitchen = window.EasyKitchen || {};
         $('topbar-version').classList.add('outdated');
       }
       if (res.manual) openModal(res);
-      else maybeAnnounce(res, skipped);
+      else if (auto.reason === 'start') maybeAnnounce(res, skipped);   // beim Start: Dialog einmal pro Version
+      else announceQuietly(res, skipped);                              // während der Nutzung: nur Hinweis oben
     } else if (res.ok) {
       if (pill) pill.hidden = true;
       $('topbar-version').classList.remove('outdated');
@@ -137,6 +139,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (auto.pending && Date.now() - auto.lastCheck < 30000) return;   // läuft noch (max. 30 s)
     if (!isOnline()) return;               // ohne Internet: warten, bis „online“ gemeldet wird
     clearTimeout(auto.retryTimer);
+    auto.reason = reason;
     check({ manual: false, reason });
   }
 
@@ -158,6 +161,16 @@ window.EasyKitchen = window.EasyKitchen || {};
     show();
   }
 
+  /** Während der Nutzung: kein Dialog, nur der Hinweis oben (LED) und einmalig eine kurze Meldung. */
+  function announceQuietly(res, skipped) {
+    if (skipped === res.latestVersion) return;
+    let notified = '';
+    try { notified = localStorage.getItem(NOTIFIED_KEY) || ''; } catch (_) {}
+    if (notified === res.latestVersion) return;
+    try { localStorage.setItem(NOTIFIED_KEY, res.latestVersion); } catch (_) {}
+    UI.toast(`✨ Update v${res.latestVersion} ist verfügbar – oben auf den Hinweis klicken`);
+  }
+
   function startAutoCheck() {
     if (auto.started) return;
     auto.started = true;
@@ -167,12 +180,14 @@ window.EasyKitchen = window.EasyKitchen || {};
       else setStatus('Keine Internetverbindung – Update-Prüfung erfolgt automatisch, sobald du online bist.');
     }, 1200);
     // 2. Internet ist (wieder) da → prüfen, falls noch nicht erfolgreich geprüft
-    window.addEventListener('online', () => { if (!auto.lastOk || Date.now() - auto.lastCheck > RECHECK_MS) autoCheck('online'); });
+    window.addEventListener('online', () => { if (!auto.lastOk || Date.now() - auto.lastCheck > FOCUS_MS) autoCheck('online'); });
     // 3. Zurück im Fenster nach längerer Zeit / regelmäßig während die App läuft
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && Date.now() - auto.lastCheck > RECHECK_MS) autoCheck('focus');
+      if (!document.hidden && Date.now() - auto.lastCheck > FOCUS_MS) autoCheck('focus');
     });
-    setInterval(() => { if (Date.now() - auto.lastCheck >= RECHECK_MS) autoCheck('interval'); }, 15 * 60 * 1000);
+    // 4. Regelmäßig, solange die App läuft → neues Release erscheint oben, ohne Neustart
+    setInterval(() => { if (Date.now() - auto.lastCheck >= LIVE_MS - 1000) autoCheck('interval'); }, 60 * 1000);
+    window.addEventListener('focus', () => { if (Date.now() - auto.lastCheck > FOCUS_MS) autoCheck('focus'); });
   }
 
   function onProgress(prog) {

@@ -405,38 +405,54 @@ window.EasyKitchen = window.EasyKitchen || {};
     UI.toast(found ? `Rezept erkannt (${found} Zutaten) – bitte kurz prüfen` : 'Text übernommen – bitte Zutaten prüfen und ergänzen');
   }
 
+  function importItem(r, dupe) {
+    return `
+      <li class="${dupe ? 'is-dupe' : ''}">
+        ${r.image ? `<img src="${r.image}" alt="">` : `<div class="import-noimg">${esc(r.title.charAt(0).toUpperCase())}</div>`}
+        <div><strong>${esc(r.title)}</strong><span class="muted">${dupe ? 'Schon vorhanden – wird übersprungen' : `${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt`}</span></div>
+      </li>`;
+  }
+
+  /**
+   * Bestätigungsdialog: nur neue Rezepte werden übernommen.
+   * Schon vorhandene (gleiche Kennung oder gleicher Name) werden übersprungen –
+   * so entstehen keine Doppelten, wenn jemand seine ganze Liste erneut schickt.
+   */
   function confirmImport(recipes, after) {
-    const existing = recipes.filter(r => D.getRecipe(r.id)).length;
+    const { fresh, dupes } = D.splitImport(recipes);
+    const n = fresh.length;
+    const title = !n ? 'Alles schon vorhanden'
+      : n === 1 ? '1 neues Rezept importieren' : `${n} neue Rezepte importieren`;
     $('import-confirm-card').innerHTML = `
       <div class="modal-head">
-        <h2>${recipes.length === 1 ? 'Rezept importieren' : `${recipes.length} Rezepte importieren`}</h2>
+        <h2>${title}</h2>
         <button type="button" class="icon-btn" data-close="import-confirm" aria-label="Schließen">✕</button>
       </div>
       <div class="modal-body">
-        <ul class="import-list">
-          ${recipes.map(r => `
-            <li>
-              ${r.image ? `<img src="${r.image}" alt="">` : `<div class="import-noimg">${esc(r.title.charAt(0).toUpperCase())}</div>`}
-              <div><strong>${esc(r.title)}</strong><span class="muted">${r.ingredients.length} Zutaten · ${esc(UI.fmtTime(r.time))} gesamt${D.getRecipe(r.id) ? ' · wird aktualisiert' : ''}</span></div>
-            </li>`).join('')}
-        </ul>
-        ${existing ? `<p class="muted small">${existing === 1 ? 'Ein Rezept ist' : `${existing} Rezepte sind`} schon vorhanden und ${existing === 1 ? 'wird' : 'werden'} mit der geteilten Version aktualisiert.</p>` : ''}
+        ${n ? `<ul class="import-list">${fresh.map(r => importItem(r, false)).join('')}</ul>`
+            : `<p class="import-all-dupes">Alle ${dupes.length === 1 ? 'Rezepte dieser Datei sind' : `${dupes.length} Rezepte dieser Datei sind`} bereits in deiner Sammlung. Es wird nichts doppelt angelegt.</p>`}
+        ${dupes.length ? `
+          <details class="import-dupes" ${n ? '' : 'open'}>
+            <summary>${dupes.length === 1 ? '1 Rezept ist' : `${dupes.length} Rezepte sind`} schon vorhanden und ${dupes.length === 1 ? 'wird' : 'werden'} übersprungen</summary>
+            <ul class="import-list">${dupes.map(r => importItem(r, true)).join('')}</ul>
+          </details>` : ''}
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn btn-ghost" data-close="import-confirm">Abbrechen</button>
-        <button type="button" class="btn btn-primary" id="import-confirm-btn">Importieren</button>
+        <button type="button" class="btn btn-ghost" data-close="import-confirm">${n ? 'Abbrechen' : 'Schließen'}</button>
+        ${n ? `<button type="button" class="btn btn-primary" id="import-confirm-btn">${n === 1 ? 'Importieren' : `${n} importieren`}</button>` : ''}
       </div>`;
-    $('import-confirm-btn').addEventListener('click', () => {
-      const res = D.importRecipes(recipes);
+    const btn = $('import-confirm-btn');
+    if (btn) btn.addEventListener('click', () => {
+      const res = D.importRecipes(fresh);
       UI.closeModal('import-confirm');
       UI.closeModal('import-modal');
       ns.App.renderList();
-      UI.toast(res.added && res.updated ? `${res.added} importiert, ${res.updated} aktualisiert ✓`
-        : res.updated ? `${res.updated} ${res.updated === 1 ? 'Rezept' : 'Rezepte'} aktualisiert ✓`
-        : `${res.added} ${res.added === 1 ? 'Rezept' : 'Rezepte'} importiert ✓`);
-      if (recipes.length === 1) ns.App.openDetail(recipes[0].id);
+      UI.toast(`${res.added} ${res.added === 1 ? 'Rezept' : 'Rezepte'} importiert ✓` +
+        (dupes.length ? ` · ${dupes.length} übersprungen` : ''));
+      if (fresh.length === 1) ns.App.openDetail(fresh[0].id);
       if (after) after();
     });
+    else if (after) document.querySelector('#import-confirm [data-close]').addEventListener('click', after, { once: true });
     UI.openModal('import-confirm');
   }
 
