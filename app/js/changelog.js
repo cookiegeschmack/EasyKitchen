@@ -7,6 +7,17 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.6.0',
+    date: '2026-11-16',
+    title: 'Entwürfe & Unterschiede bei doppelten Rezepten',
+    items: [
+      '📝 Nichts geht mehr verloren: Klickst du beim Erstellen oder Bearbeiten eines Rezepts daneben (oder drückst Esc/Abbrechen), fragt EasyKitchen nach – als Entwurf speichern, verwerfen oder weiter bearbeiten.',
+      '🗂️ Neuer Button „Entwürfe“ oben in der Leiste: Dort findest du alle angefangenen Rezepte und machst mit einem Klick weiter. Wird die App mit offenem Editor beendet, landet der Stand automatisch dort.',
+      '🔍 Doppelte Rezepte vergleichen: Beim Import zeigt „Unterschiede ansehen“ das importierte und das vorhandene Rezept nebeneinander – abweichende Zutaten, Mengen, Schritte und Angaben sind farbig markiert.',
+      '➕ Trotzdem übernehmen: Aus dem Vergleich heraus lässt sich das importierte Rezept als neues Rezept speichern – mit gleichem oder eigenem Namen. Das vorhandene bleibt unverändert.'
+    ]
+  },
+  {
     version: '1.5.0',
     date: '2026-11-16',
     title: 'Besserer Import, Nachspeisen & stimmige Nährwerte',

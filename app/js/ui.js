@@ -37,9 +37,15 @@ window.EasyKitchen = window.EasyKitchen || {};
     document.body.classList.add('modal-open');
   }
 
-  function closeModal(id) {
+  // Schließ-Wächter: ein Fenster (z. B. der Rezept-Editor) kann das Schließen abfangen,
+  // etwa um nach „Entwurf speichern / Verwerfen“ zu fragen. force = ohne Nachfrage schließen.
+  const closeGuards = {};
+  function setCloseGuard(id, fn) { closeGuards[id] = fn; }
+
+  function closeModal(id, force) {
     const el = $(id);
     if (!el) return;
+    if (!force && !el.hidden && closeGuards[id] && closeGuards[id]() === false) return;
     el.classList.remove('open');
     el.hidden = true;
     const i = openStack.indexOf(id);
@@ -111,5 +117,5 @@ window.EasyKitchen = window.EasyKitchen || {};
     });
   }
 
-  ns.UI = { $, esc, toast, openModal, closeModal, topModal, fmtNum, fmtAmount, fmtScaled, fmtTime, readImageFile };
+  ns.UI = { $, esc, toast, openModal, closeModal, setCloseGuard, topModal, fmtNum, fmtAmount, fmtScaled, fmtTime, readImageFile };
 })(window.EasyKitchen);
