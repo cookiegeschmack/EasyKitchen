@@ -330,7 +330,10 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   /** Erkannten Text in einen Rezept-Entwurf umwandeln. */
   function parseRecipeText(text) {
-    const raw = String(text || '').split(/\r?\n/).map(cleanLine);
+    const rawLines = String(text || '').split(/\r?\n/);
+    const raw = rawLines.map(cleanLine);
+    // Aufzählungszeichen merken („– Reiskuchen in Wasser geben“): jede Zeile damit ist ein eigener Schritt
+    const bulleted = new Set(rawLines.filter(r => /^\s*[-–—•·▪●○◦■*>✓✔]\s*\S/.test(r) && !/^\s*-\s*\d/.test(r)).map(cleanLine));
     const lines = raw.filter(l => !isNoise(l));
     const draft = { title: '', time: 0, effort: 1, cost: 1, servings: 0, ingredients: [], steps: '' };
     const svLine = raw.find(l => /^(portionen|personen|portion|servings?)\s*[:\-]?\s*\d+$/i.test(l));
@@ -391,6 +394,23 @@ window.EasyKitchen = window.EasyKitchen || {};
         if (isIngLike(l) || isQtyOnly(l) || (l.length <= 40 && !/[.!?]$/.test(l))) { ing.push(l); return; }
         steps.push(l); inSteps = true;
       });
+      // Gar keine Mengen (z. B. Notizen: „Zwiebeln / Fleisch / Knoblauch …“, danach Sätze):
+      // kurze Namenszeilen vor dem ersten Satz mit Kochverb sind die Zutaten, ab da beginnt die Zubereitung.
+      if (!firstFound) {
+        const all = head.splice(0);
+        const isStepStart = (l, i) => i > 0 && (isStepLike(l) || (hasCookVerb(l) && (bulleted.has(l) || l.split(/\s+/).length >= 3)));
+        const first = all.findIndex(isStepStart);
+        const nameLine = l => l.length <= 45 && l.split(/\s+/).length <= 6 && !/[.!?]$/.test(l) && !hasCookVerb(l) &&
+          !/\b(min|minuten|std|stunden|portionen?|personen|kcal|schwierigkeit|zubereitungszeit)\b/i.test(l);
+        const before = first > 0 ? all.slice(0, first) : all;
+        // Titel = erste Zeile; danach mindestens 2 Namenszeilen in Folge
+        const names = before.slice(1).filter(nameLine);
+        if (first > 0 && names.length >= 2) {
+          head.push(before[0]);
+          before.slice(1).forEach(l => (nameLine(l) ? ing : head).push(l));
+          steps.push(...all.slice(first));
+        } else head.push(...all);
+      }
     } else if (!steps.length && ing.length) {
       // Zutaten-Überschrift, aber keine Zubereitungs-Überschrift: lange Sätze sind Schritte
       const keep = [];
@@ -515,6 +535,11 @@ window.EasyKitchen = window.EasyKitchen || {};
     const flush = () => { if (buf.trim()) out.push(buf.trim()); buf = ''; };
     const stepLines = steps.flatMap(l => D.splitInlineSteps(l));
     const numberedSteps = stepLines.filter(l => !l.startsWith('§NOTE§') && D.stripStepNumber(l).numbered).length >= 2;
+    // Schritte ohne Satzzeichen, Zeile für Zeile (Notizen-Stil): jede Zeile mit Kochverb ist ein eigener Schritt
+    const plain = stepLines.filter(l => !l.startsWith('§NOTE§'));
+    const lineSteps = !numberedSteps && plain.length >= 3 &&
+      plain.filter(l => !/[.!?:]$/.test(l)).length >= plain.length * 0.6 &&
+      plain.filter(l => hasCookVerb(l) || bulleted.has(l)).length >= plain.length * 0.6;
     let inNotes = false;
     stepLines.forEach(l => {
       // Notizen/Tipps: eigener letzter Schritt
@@ -525,13 +550,17 @@ window.EasyKitchen = window.EasyKitchen || {};
       const st = D.stripStepNumber(l);
       if (st.numbered) { flush(); buf = st.text; return; }      // nummerierte Zeile = neuer Schritt
       if (!buf) { buf = l; return; }
+      // Aufzählungszeichen = neuer Schritt
+      if (bulleted.has(l) && bulleted.size >= 2) { flush(); buf = l; return; }
+      if (lineSteps && (hasCookVerb(buf) || !/^[a-zäöüß]/.test(l))) { flush(); buf = l; return; }
       // Mit Nummerierung: Zeilen ohne Nummer setzen den Schritt fort (auch über Satzenden/Seitenumbrüche)
       if (!numberedSteps && /[.!?:]$/.test(buf)) { flush(); buf = l; return; }
       if (numberedSteps && /[.!?:]$/.test(buf)) { buf += ' ' + l; return; }
       buf = /-$/.test(buf) ? buf.slice(0, -1) + l : buf + ' ' + l;
     });
     flush();
-    draft.steps = D.cleanSteps(out.join('\n'));
+    // Schritte beginnen mit Großbuchstaben („ein bisschen Zucker …“ → „Ein bisschen Zucker …“)
+    draft.steps = D.cleanSteps(out.map(t => t.replace(/^[a-zäöü]/, c => c.toUpperCase())).join('\n'));
 
     if (!draft.servings) draft.servings = 2;
     if (!draft.prepTime && !draft.cookTime) draft.cookTime = 30;
