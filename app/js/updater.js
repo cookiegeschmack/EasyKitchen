@@ -9,7 +9,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 (function (ns) {
   'use strict';
 
-  const APP_FALLBACK_VERSION = '1.6.3';
+  const APP_FALLBACK_VERSION = '1.6.4';
   const REPO = 'cookiegeschmack/EasyKitchen';
   const RELEASE_PAGE = `https://github.com/${REPO}/releases/latest`;
   const DIRECT_DMG = `https://github.com/${REPO}/releases/latest/download/EasyKitchen.dmg`;   // lädt die Datei sofort
