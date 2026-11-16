@@ -931,20 +931,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
             let cleanupSourceCmd = deleteSourceAfter ? "rm -rf \"\(sourceURL.path)\"" : ""
             let detachCmd = mountPoint.isEmpty ? "" : "/usr/bin/hdiutil detach \"\(mountPoint)\" -force -quiet || true\nrmdir \"\(mountPoint)\" 2>/dev/null || true"
 
+            let binaryPath = "\(destAppPath)/Contents/MacOS/\(APP_NAME)"
             let script = """
             #!/bin/bash
+            # EasyKitchen-Update: alte App sauber beenden → neue Version einsetzen → genau EINMAL neu starten
             exec </dev/null >/dev/null 2>&1
-            for i in {1..40}; do
-              if ! kill -0 \(pid) 2>/dev/null; then break; fi
-              sleep 0.1
-            done
-            rm -rf "\(destAppPath)"
-            /usr/bin/ditto "\(sourceAppPath)" "\(destAppPath)"
-            /usr/bin/xattr -cr "\(destAppPath)" 2>/dev/null || true
-            touch "\(destAppPath)"
+            OLD=\(pid)
+            DEST="\(destAppPath)"
+            BIN="\(binaryPath)"
+
+            # 1) Auf das Beenden der laufenden App warten (max. 8 s, normal < 2 s) – hängt sie, gezielt beenden
+            for i in $(seq 1 80); do kill -0 "$OLD" 2>/dev/null || break; sleep 0.1; done
+            if kill -0 "$OLD" 2>/dev/null; then kill -TERM "$OLD" 2>/dev/null; sleep 1.5; fi
+            if kill -0 "$OLD" 2>/dev/null; then kill -KILL "$OLD" 2>/dev/null; sleep 0.5; fi
+            # weitere Fenster/Instanzen derselben App ebenfalls schließen (verhindert Doppelstart)
+            /usr/bin/pkill -TERM -f "$BIN" 2>/dev/null; sleep 0.5
+            /usr/bin/pkill -KILL -f "$BIN" 2>/dev/null
+
+            # 2) Neue Version einsetzen
+            rm -rf "$DEST"
+            /usr/bin/ditto "\(sourceAppPath)" "$DEST"
+            /usr/bin/xattr -cr "$DEST" 2>/dev/null || true
+            touch "$DEST"
             \(detachCmd)
             \(cleanupSourceCmd)
-            /usr/bin/open -n "\(destAppPath)" || /usr/bin/open "\(destAppPath)"
+
+            # 3) Genau eine Instanz starten (zweiter Versuch, falls macOS die alte noch kurz „sieht“)
+            /usr/bin/pgrep -f "$BIN" >/dev/null || /usr/bin/open "$DEST"
+            sleep 3
+            /usr/bin/pgrep -f "$BIN" >/dev/null || /usr/bin/open -n "$DEST"
             rm -f "\(scriptPath)"
             """
 
@@ -958,12 +973,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler
                 updater.standardOutput = FileHandle.nullDevice
                 updater.standardError = FileHandle.nullDevice
                 try updater.run()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-                    self?.isTerminatingForUpdate = true
-                    exit(0)
-                }
+                self.quitForUpdate()
             } catch {
                 self.progress("error", 0, "Update-Installation fehlgeschlagen: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Für das Update: offene Änderungen speichern, dann sofort beenden.
+    /// `_exit` überspringt Aufräum-Routinen, die sonst (z. B. mit laufenden Hintergrund-Threads) hängen können.
+    func quitForUpdate() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { _exit(0) }
+            self.isTerminatingForUpdate = true
+            var done = false
+            let finish = {
+                if done { return }
+                done = true
+                // Testschalter: simuliert eine App, die sich nicht beendet (Hilfsskript muss eingreifen)
+                if ProcessInfo.processInfo.environment["EASYKITCHEN_TEST_HANG"] == "1" { return }
+                _exit(0)
+            }
+            // Sicherheitsnetz: spätestens nach 1,5 s beenden
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: finish)
+            // Rezepte sichern (JS → nativeStorage), dann kurz warten, bis die Datei geschrieben ist
+            self.webView?.evaluateJavaScript("window.dispatchEvent(new Event('pagehide')); true") { _, _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: finish)
             }
         }
     }
