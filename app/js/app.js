@@ -286,6 +286,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     row.className = 'ing-row';
     row.innerHTML = `
       <div class="ing-top">
+        <button type="button" class="ing-handle" title="Ziehen zum Verschieben (oder Pfeiltasten ↑/↓)" aria-label="Zutat verschieben">⠿</button>
         <input type="text" class="input ing-name-input" placeholder="Zutat, z. B. Rindfleisch" value="${esc(ing.name)}" maxlength="80">
         <button type="button" class="icon-btn ing-del" title="Zutat entfernen" aria-label="Zutat entfernen">✕</button>
       </div>
@@ -350,6 +351,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       applyUnit(v);
       if (unitSel.value === 'custom') { customInp.focus(); customInp.select(); }
     });
+    wireRowHandle(row);
     row.querySelector('.ing-del').addEventListener('click', () => {
       row.remove();
       if (!$('ing-list').children.length) addIngredientRow();
@@ -358,6 +360,105 @@ window.EasyKitchen = window.EasyKitchen || {};
       if (e.key === 'Enter') { e.preventDefault(); addIngredientRow(null, true); }
     });
     if (focus) row.querySelector('.ing-name-input').focus();
+  }
+
+  // ---------- Zutaten verschieben & sortieren ----------
+  function wireRowHandle(row) {
+    const handle = row.querySelector('.ing-handle');
+    const list = $('ing-list');
+    // Ziehen mit Maus/Trackpad: Zeile wird „angehoben“ und folgt dem Zeiger,
+    // eine Linie zeigt, wo sie beim Loslassen eingesetzt wird.
+    handle.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* z. B. synthetische Ereignisse */ }
+      const scroller = list.closest('.modal-body');
+      const startY = e.clientY;
+      const startScroll = scroller ? scroller.scrollTop : 0;
+      const startRect = row.getBoundingClientRect();
+      const others = () => [...list.querySelectorAll('.ing-row')].filter(r => r !== row);
+      const line = document.createElement('div');
+      line.className = 'ing-drop-line';
+      line.hidden = true;
+      list.appendChild(line);
+      row.classList.add('lifted');
+      document.body.classList.add('ing-dragging');
+      let target = null;           // Zeile, vor der eingesetzt wird (null = ans Ende)
+      let lastY = startY;
+      let scrollTimer = null;
+
+      const update = () => {
+        const scrolled = scroller ? scroller.scrollTop - startScroll : 0;
+        row.style.transform = `translateY(${lastY - startY + scrolled}px) scale(1.02)`;
+        const rows = others();
+        // Maßgeblich ist die vordere Kante der angehobenen Zeile: nach unten die Unterkante,
+        // nach oben die Oberkante – sobald sie die Mitte der Nachbarzeile passiert, wird getauscht
+        const dy = lastY - startY;
+        const edge = dy >= 0 ? startRect.bottom + dy : startRect.top + dy;
+        target = rows.find(r => { const b = r.getBoundingClientRect(); return edge < b.top + b.height / 2; }) || null;
+        // Position unverändert → keine Linie
+        const unchanged = target ? target === row.nextElementSibling : rows.every(r => r.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING);
+        line.hidden = unchanged;
+        if (unchanged) return;
+        const gap = 5;
+        const top = target
+          ? target.offsetTop - gap
+          : rows[rows.length - 1].offsetTop + rows[rows.length - 1].offsetHeight + gap;
+        line.style.top = `${top - 1.5}px`;
+      };
+      // am oberen/unteren Rand automatisch weiterscrollen
+      const autoScroll = () => {
+        clearInterval(scrollTimer);
+        if (!scroller) return;
+        const b = scroller.getBoundingClientRect();
+        const dir = lastY < b.top + 50 ? -1 : lastY > b.bottom - 50 ? 1 : 0;
+        if (dir) scrollTimer = setInterval(() => { scroller.scrollTop += dir * 10; update(); }, 16);
+      };
+      const move = ev => { lastY = ev.clientY; update(); autoScroll(); };
+      const up = () => {
+        clearInterval(scrollTimer);
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        line.remove();
+        document.body.classList.remove('ing-dragging');
+        // sanft an den neuen Platz setzen
+        const before = row.getBoundingClientRect().top;
+        row.style.transform = '';
+        if (target) { if (target !== row.nextElementSibling) list.insertBefore(row, target); }
+        else list.appendChild(row);
+        const after = row.getBoundingClientRect().top;
+        row.classList.remove('lifted');
+        row.animate([{ transform: `translateY(${before - after}px) scale(1.02)` }, { transform: 'none' }], { duration: 160, easing: 'ease-out' });
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+      update();
+    });
+    // Tastatur: ↑/↓ verschiebt die Zutat
+    handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' && row.previousElementSibling) { e.preventDefault(); list.insertBefore(row, row.previousElementSibling); handle.focus(); }
+      if (e.key === 'ArrowDown' && row.nextElementSibling) { e.preventDefault(); list.insertBefore(row.nextElementSibling, row); handle.focus(); }
+    });
+  }
+
+  /** Große Mengen zuerst, Gewürze/Kleinmengen („Prise“, „nach Geschmack“) ans Ende. */
+  function sortIngredientRows() {
+    const list = $('ing-list');
+    const SMALL = ['ng', 'prise', 'msp', 'tropfen'];
+    const rows = [...list.querySelectorAll('.ing-row')].map((row, idx) => {
+      const ing = {
+        name: row.querySelector('.ing-name-input').value.trim(),
+        amount: Number(row.querySelector('.ing-amount-input').value) || 0,
+        unit: row.querySelector('.ing-unit').value
+      };
+      const spice = SMALL.includes(ing.unit) || ns.Planner.categorize(ing.name, ing.unit) === 'gewuerze';
+      return { row, idx, empty: !ing.name, spice, g: ns.Nutrition.estimateGrams(ing) };
+    });
+    rows.sort((a, b) => (a.empty - b.empty) || (a.spice - b.spice) || (b.g - a.g) || (a.idx - b.idx));
+    rows.forEach(r => list.appendChild(r.row));
+    UI.toast('Zutaten sortiert – große Mengen zuerst, Gewürze am Ende ✓');
   }
 
   function readIngredients() {
@@ -389,13 +490,19 @@ window.EasyKitchen = window.EasyKitchen || {};
     if (editor.image) img.src = editor.image; else img.removeAttribute('src');
     $('photo-placeholder').hidden = !!editor.image;
     $('photo-remove').hidden = !editor.image;
+    $('photo-crop').hidden = !editor.image;
     $('photo-drop').classList.toggle('has-photo', !!editor.image);
   }
 
   async function handlePhotoFile(file) {
     if (!file) return;
     try {
-      setPhoto(await UI.readImageFile(file));
+      // etwas größer einlesen, damit beim Zuschneiden genug Auflösung bleibt
+      const src = await UI.readImageFile(file, 1800);
+      const cropped = await ns.Crop.open(src);
+      if (cropped == null) return;               // abgebrochen → altes Foto bleibt
+      editor.photoSource = src;
+      setPhoto(cropped);
     } catch (e) {
       UI.toast(e.message);
     }
@@ -466,6 +573,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     setSegment('taste', (r && r.taste) || guess.taste);
     setSegment('diet', (r && r.diet) || 'auto');
     setPhoto(r ? (r.image || '') : '');
+    editor.photoSource = r ? (r.image || '') : '';
     $('ing-list').innerHTML = '';
     (r && r.ingredients.length ? r.ingredients : [null]).forEach(i => addIngredientRow(i));
     updateEditorNutrition();
@@ -941,6 +1049,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     // Editor
     $('editor-form').addEventListener('submit', saveEditor);
     $('add-ing-btn').addEventListener('click', () => addIngredientRow(null, true));
+    $('sort-ing-btn').addEventListener('click', sortIngredientRows);
     [['ed-prep', 120], ['ed-cook', 180]].forEach(([id, max]) => {
       $(id + '-range').addEventListener('input', e => { $(id).value = e.target.value; updateTotal(); });
       $(id).addEventListener('input', e => {
@@ -969,7 +1078,14 @@ window.EasyKitchen = window.EasyKitchen || {};
     drop.addEventListener('click', e => { if (!e.target.closest('#photo-remove')) photoInput.click(); });
     drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photoInput.click(); } });
     photoInput.addEventListener('change', () => { handlePhotoFile(photoInput.files[0]); photoInput.value = ''; });
-    $('photo-remove').addEventListener('click', e => { e.stopPropagation(); setPhoto(''); });
+    $('photo-remove').addEventListener('click', e => { e.stopPropagation(); setPhoto(''); editor.photoSource = ''; });
+    // Zuschneiden: vom Originalfoto dieser Sitzung aus (sonst vom aktuellen Foto)
+    $('photo-crop').addEventListener('click', async e => {
+      e.stopPropagation();
+      const cropped = await ns.Crop.open(editor.photoSource || editor.image);
+      if (cropped) setPhoto(cropped);
+    });
+    ns.Crop.wire();
     ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
     ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
     drop.addEventListener('drop', e => handlePhotoFile(e.dataTransfer.files[0]));

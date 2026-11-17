@@ -173,7 +173,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   // Tagesreferenzwerte (EU, Erwachsene)
   const RI = { kcal: 2000, protein: 50, carbs: 260, fat: 70 };
 
-  const DEFAULT_GRAMS = { el: 15, tl: 5, prise: 0.5, msp: 0.3, tasse: 240, zehe: 4, bund: 30, dose: 400,
+  const DEFAULT_GRAMS = { el: 15, tl: 5, prise: 0.5, msp: 0.3, tropfen: 0.05, tasse: 240, zehe: 4, bund: 30, dose: 400,
     pck: 250, becher: 200, glas: 350, scheibe: 25, zweig: 1, handvoll: 30 };
 
   let index = null;
@@ -310,5 +310,15 @@ window.EasyKitchen = window.EasyKitchen || {};
       </div>`;
   }
 
-  ns.Nutrition = { calculate, lookup, renderBars, renderPrintTable, RI };
+  /** Grobe Menge in Gramm (für die Sortierung der Zutaten). */
+  function estimateGrams(ing) {
+    const a = Number(ing.amount) || 0;
+    if (ing.unit === 'ng' || !a) return 0;
+    const e = lookup(ing.name);
+    if (e) { const g = gramsFor(ing, e); if (g != null) return g; }
+    const UNIT_G = { g: 1, kg: 1000, ml: 1, l: 1000, stk: 100, custom: 30 };
+    return a * (UNIT_G[ing.unit] != null ? UNIT_G[ing.unit] : (DEFAULT_GRAMS[ing.unit] != null ? DEFAULT_GRAMS[ing.unit] : 50));
+  }
+
+  ns.Nutrition = { calculate, lookup, renderBars, renderPrintTable, estimateGrams, RI };
 })(window.EasyKitchen);

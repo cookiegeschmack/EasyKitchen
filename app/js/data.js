@@ -30,6 +30,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     { id: 'zweig',  label: 'Zweig', plural: 'Zweige',          max: 10,   step: 1 },
     { id: 'handvoll', label: 'Handvoll',     max: 5,    step: 0.5 },
     { id: 'msp',    label: 'Messerspitze', plural: 'Messerspitzen', max: 5, step: 1 },
+    { id: 'tropfen', label: 'Tropfen',       max: 20,   step: 1 },
     // frei benennbar (z. B. Blätter, Stangen, Tropfen) → Name steht in ingredient.customUnit
     { id: 'custom', label: 'Eigenes …',      max: 20,   step: 1 },
     { id: 'ng',     label: 'nach Geschmack', max: 0,    step: 0 }
@@ -129,6 +130,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       amount: Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0,
       unit: UNIT_BY_ID[i.unit] ? i.unit : 'g'
     };
+    if (out.unit === 'custom' && /^tropfen$/i.test(String(i.customUnit || '').trim())) out.unit = 'tropfen';   // früher „Eigenes: Tropfen“
     if (out.unit === 'custom') {
       const cu = String(i.customUnit || '').replace(/\s+/g, ' ').trim().slice(0, 30);
       if (cu) out.customUnit = cu; else out.unit = 'stk';

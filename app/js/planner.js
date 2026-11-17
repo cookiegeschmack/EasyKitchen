@@ -119,7 +119,7 @@ window.EasyKitchen = window.EasyKitchen || {};
 
   function roundNice(v, unitId) {
     // Stückige Einheiten auf halbe Einheiten aufrunden, sonst sinnvoll runden
-    if (['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig', 'custom'].includes(unitId)) return Math.ceil(v * 2) / 2;
+    if (['stk', 'dose', 'pck', 'becher', 'glas', 'bund', 'zehe', 'scheibe', 'zweig', 'tropfen', 'custom'].includes(unitId)) return Math.ceil(v * 2) / 2;
     if (v >= 100) return Math.round(v / 5) * 5;
     if (v >= 10) return Math.round(v);
     return Math.round(v * 10) / 10;
