@@ -400,8 +400,25 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
   color: var(--text-3); font-size: 17px; line-height: 1; cursor: grab; touch-action: none;
 }
 .ing-handle:hover, .ing-handle:focus-visible { color: var(--accent); background: var(--surface-2); }
-.ing-row.dragging { box-shadow: var(--shadow-lg); border-color: var(--accent); position: relative; z-index: 2; }
-.ing-row.dragging .ing-handle { cursor: grabbing; }
+.ing-list { position: relative; }
+.ing-row { transition: box-shadow .15s, border-color .15s; }
+.ing-row.lifted {
+  position: relative; z-index: 3; border-color: var(--accent);
+  box-shadow: 0 14px 34px rgba(40, 25, 70, .28), 0 2px 6px rgba(40, 25, 70, .12);
+  background: var(--surface); opacity: .97;
+}
+.ing-row.lifted .ing-handle { cursor: grabbing; color: var(--accent); }
+body.ing-dragging, body.ing-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+.ing-drop-line {
+  position: absolute; left: 4px; right: 4px; height: 3px; border-radius: 2px; background: var(--accent);
+  z-index: 2; pointer-events: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.ing-drop-line::before, .ing-drop-line::after {
+  content: ''; position: absolute; top: -3.5px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--surface); border: 2.5px solid var(--accent); box-sizing: border-box;
+}
+.ing-drop-line::before { left: -6px; }
+.ing-drop-line::after { right: -6px; }
 .ing-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
 .ing-amount { display: flex; align-items: center; gap: 8px; }
 .ing-amount .ing-range { flex: 1; min-width: 80px; }

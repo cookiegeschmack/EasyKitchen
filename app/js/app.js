@@ -366,27 +366,70 @@ window.EasyKitchen = window.EasyKitchen || {};
   function wireRowHandle(row) {
     const handle = row.querySelector('.ing-handle');
     const list = $('ing-list');
-    // Ziehen mit Maus/Trackpad: Zeile folgt dem Zeiger und rutscht zwischen die anderen
+    // Ziehen mit Maus/Trackpad: Zeile wird „angehoben“ und folgt dem Zeiger,
+    // eine Linie zeigt, wo sie beim Loslassen eingesetzt wird.
     handle.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
       e.preventDefault();
-      handle.setPointerCapture(e.pointerId);
-      row.classList.add('dragging');
-      const move = ev => {
-        const rows = [...list.children].filter(r => r !== row);
-        const after = rows.find(r => { const b = r.getBoundingClientRect(); return ev.clientY < b.top + b.height / 2; });
-        if (after) { if (row.nextElementSibling !== after) list.insertBefore(row, after); }
-        else if (list.lastElementChild !== row) list.appendChild(row);
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* z. B. synthetische Ereignisse */ }
+      const scroller = list.closest('.modal-body');
+      const startY = e.clientY;
+      const startScroll = scroller ? scroller.scrollTop : 0;
+      const others = () => [...list.querySelectorAll('.ing-row')].filter(r => r !== row);
+      const line = document.createElement('div');
+      line.className = 'ing-drop-line';
+      line.hidden = true;
+      list.appendChild(line);
+      row.classList.add('lifted');
+      document.body.classList.add('ing-dragging');
+      let target = null;           // Zeile, vor der eingesetzt wird (null = ans Ende)
+      let lastY = startY;
+      let scrollTimer = null;
+
+      const update = () => {
+        const scrolled = scroller ? scroller.scrollTop - startScroll : 0;
+        row.style.transform = `translateY(${lastY - startY + scrolled}px) scale(1.02)`;
+        const rows = others();
+        target = rows.find(r => { const b = r.getBoundingClientRect(); return lastY < b.top + b.height / 2; }) || null;
+        // Position unverändert → keine Linie
+        const unchanged = target ? target === row.nextElementSibling : rows.every(r => r.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING);
+        line.hidden = unchanged;
+        if (unchanged) return;
+        const gap = 5;
+        const top = target
+          ? target.offsetTop - gap
+          : rows[rows.length - 1].offsetTop + rows[rows.length - 1].offsetHeight + gap;
+        line.style.top = `${top - 1.5}px`;
       };
+      // am oberen/unteren Rand automatisch weiterscrollen
+      const autoScroll = () => {
+        clearInterval(scrollTimer);
+        if (!scroller) return;
+        const b = scroller.getBoundingClientRect();
+        const dir = lastY < b.top + 50 ? -1 : lastY > b.bottom - 50 ? 1 : 0;
+        if (dir) scrollTimer = setInterval(() => { scroller.scrollTop += dir * 10; update(); }, 16);
+      };
+      const move = ev => { lastY = ev.clientY; update(); autoScroll(); };
       const up = () => {
-        row.classList.remove('dragging');
+        clearInterval(scrollTimer);
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
+        line.remove();
+        document.body.classList.remove('ing-dragging');
+        // sanft an den neuen Platz setzen
+        const before = row.getBoundingClientRect().top;
+        row.style.transform = '';
+        if (target) { if (target !== row.nextElementSibling) list.insertBefore(row, target); }
+        else list.appendChild(row);
+        const after = row.getBoundingClientRect().top;
+        row.classList.remove('lifted');
+        row.animate([{ transform: `translateY(${before - after}px) scale(1.02)` }, { transform: 'none' }], { duration: 160, easing: 'ease-out' });
       };
       handle.addEventListener('pointermove', move);
       handle.addEventListener('pointerup', up);
       handle.addEventListener('pointercancel', up);
+      update();
     });
     // Tastatur: ↑/↓ verschiebt die Zutat
     handle.addEventListener('keydown', e => {
@@ -399,7 +442,7 @@ window.EasyKitchen = window.EasyKitchen || {};
   function sortIngredientRows() {
     const list = $('ing-list');
     const SMALL = ['ng', 'prise', 'msp', 'tropfen'];
-    const rows = [...list.children].map((row, idx) => {
+    const rows = [...list.querySelectorAll('.ing-row')].map((row, idx) => {
       const ing = {
         name: row.querySelector('.ing-name-input').value.trim(),
         amount: Number(row.querySelector('.ing-amount-input').value) || 0,
