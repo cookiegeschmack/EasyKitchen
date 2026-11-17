@@ -155,6 +155,7 @@
               <span>Foto auswählen oder hierher ziehen</span>
             </div>
             <button type="button" class="photo-remove" id="photo-remove" hidden aria-label="Foto entfernen">✕</button>
+            <button type="button" class="photo-crop-btn" id="photo-crop" hidden title="Bildausschnitt wählen">✂ Zuschneiden</button>
           </div>
           <input type="file" id="photo-input" accept="image/*" hidden>
         </div>
@@ -239,7 +240,10 @@
             </div>
           </div>
           <div id="ing-list" class="ing-list"></div>
-          <button type="button" class="btn btn-ghost add-ing" id="add-ing-btn">＋ Zutat hinzufügen</button>
+          <div class="ing-actions">
+            <button type="button" class="btn btn-ghost add-ing" id="add-ing-btn">＋ Zutat hinzufügen</button>
+            <button type="button" class="btn btn-ghost add-ing" id="sort-ing-btn" title="Große Mengen zuerst, Gewürze & Kleinmengen ans Ende. Einzelne Zutaten kannst du am Griff ⠿ verschieben.">⇅ Automatisch sortieren</button>
+          </div>
           <p class="field-error" id="ing-error" hidden>Bitte mindestens eine Zutat eintragen.</p>
         </div>
 
@@ -443,6 +447,44 @@
     </div>
   </div>
 
+  <!-- Foto zuschneiden -->
+  <div class="modal" id="crop-modal" hidden>
+    <div class="modal-backdrop" data-close="crop-modal"></div>
+    <div class="modal-card modal-crop">
+      <div class="modal-head">
+        <h2>Foto zuschneiden</h2>
+        <button type="button" class="icon-btn" data-close="crop-modal" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="muted crop-hint">Bild ziehen, um den Ausschnitt zu verschieben – mit dem Regler oder Trackpad zoomen.</p>
+        <div class="crop-frame" id="crop-frame"><img id="crop-img" alt="" draggable="false"></div>
+        <div class="crop-zoom-row">
+          <span aria-hidden="true">−</span>
+          <input type="range" id="crop-zoom" min="1" max="4" step="0.01" value="1" aria-label="Zoom">
+          <span aria-hidden="true">＋</span>
+          <button type="button" class="link-btn" id="crop-reset">Zurücksetzen</button>
+        </div>
+        <div class="crop-previews">
+          <div class="crop-prev-wrap">
+            <span class="crop-prev-label">Vorschau: Rezeptkarte</span>
+            <div class="crop-prev crop-prev-card" id="crop-prev-card"><img alt=""></div>
+          </div>
+          <div class="crop-prev-wrap crop-prev-wide">
+            <span class="crop-prev-label">Vorschau: Rezeptansicht</span>
+            <div class="crop-prev crop-prev-hero" id="crop-prev-hero"><img alt=""></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot spread">
+        <button type="button" class="btn btn-ghost" id="crop-cancel">Abbrechen</button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="crop-original" title="Foto ohne Zuschneiden übernehmen">Ganzes Foto</button>
+          <button type="button" class="btn btn-primary" id="crop-apply">Übernehmen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Vergleich: importiertes vs. vorhandenes Rezept -->
   <div class="modal" id="compare-modal" hidden>
     <div class="modal-backdrop" data-close="compare-modal"></div>
@@ -475,6 +517,7 @@
   <script src="js/importer.js"></script>
   <script src="js/planner.js"></script>
   <script src="js/compare.js"></script>
+  <script src="js/crop.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -149,6 +149,22 @@ window.EasyKitchen = window.EasyKitchen || {};
     'Ja': 'Yes',
     'Nein': 'No',
     '＋ Zutat hinzufügen': '＋ Add ingredient',
+    '⇅ Automatisch sortieren': '⇅ Sort automatically',
+    '✂ Zuschneiden': '✂ Crop',
+    'Bildausschnitt wählen': 'Choose image section',
+    'Foto zuschneiden': 'Crop photo',
+    'Bild ziehen, um den Ausschnitt zu verschieben – mit dem Regler oder Trackpad zoomen.': 'Drag the image to move the section – zoom with the slider or trackpad.',
+    'Zoom': 'Zoom',
+    'Zurücksetzen': 'Reset',
+    'Vorschau: Rezeptkarte': 'Preview: recipe card',
+    'Vorschau: Rezeptansicht': 'Preview: recipe view',
+    'Foto ohne Zuschneiden übernehmen': 'Use the photo without cropping',
+    'Ganzes Foto': 'Whole photo',
+    'Übernehmen': 'Apply',
+    'Große Mengen zuerst, Gewürze & Kleinmengen ans Ende. Einzelne Zutaten kannst du am Griff ⠿ verschieben.': 'Large amounts first, spices & small amounts last. You can move single ingredients by the ⠿ handle.',
+    'Ziehen zum Verschieben (oder Pfeiltasten ↑/↓)': 'Drag to move (or arrow keys ↑/↓)',
+    'Zutat verschieben': 'Move ingredient',
+    'Zutaten sortiert – große Mengen zuerst, Gewürze am Ende ✓': 'Ingredients sorted – large amounts first, spices last ✓',
     'Bitte mindestens eine Zutat eintragen.': 'Please enter at least one ingredient.',
     'Jeder Schritt in eine eigene Zeile, z. B. Rindfleisch in Streifen schneiden Paprika anbraten …': 'One step per line, e.g. Cut the beef into strips Fry the peppers …',
     '★ Als Favorit markieren': '★ Mark as favorite',
@@ -356,7 +372,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     // --- Einheiten (Auswahlliste) ---
     'Stück': 'pcs', 'EL': 'tbsp', 'TL': 'tsp', 'Prise': 'pinch', 'Bund': 'bunch', 'Dose': 'can', 'Packung': 'pack',
     'Zehe': 'clove', 'Tasse': 'cup', 'Becher': 'tub', 'Glas': 'jar', 'Scheibe': 'slice', 'Zweig': 'sprig',
-    'Handvoll': 'handful', 'Messerspitze': 'knife tip', 'Eigenes …': 'Custom …', 'nach Geschmack': 'to taste'
+    'Handvoll': 'handful', 'Messerspitze': 'knife tip', 'Tropfen': 'drops', 'Eigenes …': 'Custom …', 'nach Geschmack': 'to taste'
   };
 
   // Einheiten: Einzahl/Mehrzahl auf Englisch
@@ -364,7 +380,7 @@ window.EasyKitchen = window.EasyKitchen || {};
     g: ['g', 'g'], kg: ['kg', 'kg'], ml: ['ml', 'ml'], l: ['l', 'l'], stk: ['pc', 'pcs'], el: ['tbsp', 'tbsp'],
     tl: ['tsp', 'tsp'], prise: ['pinch', 'pinches'], bund: ['bunch', 'bunches'], dose: ['can', 'cans'], pck: ['pack', 'packs'],
     zehe: ['clove', 'cloves'], tasse: ['cup', 'cups'], becher: ['tub', 'tubs'], glas: ['jar', 'jars'], scheibe: ['slice', 'slices'],
-    zweig: ['sprig', 'sprigs'], handvoll: ['handful', 'handfuls'], msp: ['knife tip', 'knife tips'], custom: ['Custom …', 'Custom …'],
+    zweig: ['sprig', 'sprigs'], handvoll: ['handful', 'handfuls'], msp: ['knife tip', 'knife tips'], tropfen: ['drop', 'drops'], custom: ['Custom …', 'Custom …'],
     ng: ['to taste', 'to taste']
   };
 

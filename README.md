@@ -47,6 +47,8 @@ Gleiche Architektur wie **FinPilot**: nativer macOS-Wrapper (Swift + WKWebView),
 - **Import aus anderen Quellen**: Screenshots, Fotos (PNG, JPG, HEIC, WebP …) und PDFs anderer Anbieter per „Importieren“, Drag & Drop, Einfügen (⌘V) oder „Öffnen mit → EasyKitchen“. Der Text wird lokal mit der macOS-Texterkennung gelesen und als Rezept vorausgefüllt – nur noch prüfen und speichern. Rezepttext lässt sich auch direkt einfügen.
 - **„Was ist neu“**: Nach jedem Update zeigt EasyKitchen einmalig, was dazugekommen ist (Einträge in `app/js/changelog.js`).
 - **Sprache**: Deutsch oder Englisch (Einstellungen → Sprache, Standard: wie das System). Rezeptinhalte werden nicht übersetzt. Die Zutatensuche versteht deutsche und englische Begriffe.
+- **Zutaten-Reihenfolge**: Im Editor per Griff ⠿ verschieben oder „Automatisch sortieren“ (große Mengen zuerst, Gewürze ans Ende).
+- **Foto zuschneiden**: Ausschnitt verschieben und zoomen, mit Vorschau für Rezeptkarte und Rezeptansicht.
 - **Eigene Einheiten**: Neben g, ml, EL, Stück & Co. gibt es „Eigenes …“ – die Einheit wird frei benannt (z. B. Blätter, Stangen, Tropfen).
 - **Entwürfe**: Wer den Rezept-Editor mit ungespeicherten Eingaben verlässt (daneben klicken, Esc, Abbrechen), wird gefragt, ob ein Entwurf gespeichert werden soll. Entwürfe stehen oben unter „Entwürfe“; beim Beenden der App wird ein offener Editor automatisch gesichert.
 - **Doppelte Rezepte vergleichen**: Beim Import werden schon vorhandene Rezepte übersprungen. „Unterschiede ansehen“ zeigt beide Fassungen nebeneinander mit markierten Unterschieden; auf Wunsch wird das importierte als neues Rezept (gleicher oder eigener Name) übernommen.

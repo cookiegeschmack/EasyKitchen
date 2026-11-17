@@ -42,10 +42,11 @@ window.EasyKitchen = window.EasyKitchen || {};
     [/^(zweige?|zweiglein|sprigs?)$/, 'zweig', 1],
     [/^(handvoll)$/, 'handvoll', 1],
     [/^(msp|messerspitzen?)$/, 'msp', 1],
+    [/^(tropfen|drops?)$/, 'tropfen', 1],
     [/^(stk|stck|stück|stücke|st|pieces?|pcs|pc)$/, 'stk', 1]
   ];
   // Einheiten ohne feste Entsprechung → „Eigenes …“ mit dem Wort aus dem Rezept
-  const CUSTOM_UNIT = /^(blatt|blätter|stange|stangen|stängel|stiel|stiele|würfel|tropfen|spritzer|schuss|kugel|kugeln|kopf|köpfe|knolle|knollen|beutel|btl|tüte|tüten|flasche|flaschen|rolle|rollen|platte|platten|tafel|tafeln|schale|schalen|riegel|ecke|ecken|kästchen|schote|schoten|tube|tuben|rispe|rispen|stückchen|portion|portionen|kapsel|kapseln|blättchen)$/i;
+  const CUSTOM_UNIT = /^(blatt|blätter|stange|stangen|stängel|stiel|stiele|würfel|spritzer|schuss|kugel|kugeln|kopf|köpfe|knolle|knollen|beutel|btl|tüte|tüten|flasche|flaschen|rolle|rollen|platte|platten|tafel|tafeln|schale|schalen|riegel|ecke|ecken|kästchen|schote|schoten|tube|tuben|rispe|rispen|stückchen|portion|portionen|kapsel|kapseln|blättchen)$/i;
   // Zahlwörter am Zeilenanfang („eine Zwiebel“, „zwei Eier“, „eine halbe Zitrone“)
   const NUM_WORDS = { ein: 1, eine: 1, einen: 1, einer: 1, eins: 1, zwei: 2, drei: 3, vier: 4, 'fünf': 5, sechs: 6, sieben: 7, acht: 8,
     neun: 9, zehn: 10, elf: 11, 'zwölf': 12, halb: 0.5, halbe: 0.5, halber: 0.5, halbes: 0.5, eineinhalb: 1.5, anderthalb: 1.5, zweieinhalb: 2.5,

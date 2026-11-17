@@ -7,6 +7,26 @@ window.EasyKitchen = window.EasyKitchen || {};
 window.EasyKitchen.CHANGELOG = [
   // @@CHANGELOG_START@@
   {
+    version: '1.7.1',
+    date: '2026-11-17',
+    title: 'Zutaten-Reihenfolge, Tropfen & Foto zuschneiden',
+    items: [
+      "↕️ Zutaten in deine Reihenfolge bringen: Im Editor jede Zutat am Griff ⠿ an die gewünschte Stelle ziehen (oder mit ↑/↓ verschieben).",
+      "⇅ „Automatisch sortieren“: große Mengen zuerst, Gewürze und Kleinmengen (Prise, Messerspitze, nach Geschmack) ans Ende.",
+      "💧 Neue Einheit „Tropfen“ – z. B. für Zitronensaft oder Aromen. Der Import erkennt „5 Tropfen“ automatisch.",
+      "✂️ Fotos zuschneiden: Nach dem Auswählen Ausschnitt verschieben und zoomen – mit Live-Vorschau, wie das Foto auf der Rezeptkarte und in der Rezeptansicht aussieht. Über „Zuschneiden“ lässt sich der Ausschnitt jederzeit ändern."
+    ],
+    en: {
+      title: "Ingredient order, drops & photo cropping",
+      items: [
+        "↕️ Put ingredients in your own order: in the editor, drag each ingredient by its ⠿ handle (or move it with ↑/↓).",
+        "⇅ “Sort automatically”: large amounts first, spices and small amounts (pinch, knife tip, to taste) last.",
+        "💧 New unit “drops” – e.g. for lemon juice or flavorings. The import recognizes “5 drops” automatically.",
+        "✂️ Crop photos: after choosing a photo, move and zoom the section – with a live preview of how it looks on the recipe card and in the recipe view. Use “Crop” to change the section at any time."
+      ]
+    }
+  },
+  {
     version: '1.7.0',
     date: '2026-11-16',
     title: 'Englisch, zweisprachige Suche & einfachere Installation',

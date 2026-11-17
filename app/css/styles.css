@@ -344,7 +344,7 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
   outline: none; transition: border-color .15s, background .15s;
 }
 .photo-drop:hover, .photo-drop:focus-visible, .photo-drop.drag { border-color: var(--accent); background: var(--accent-soft); }
-.photo-drop.has-photo { border-style: solid; height: 220px; }
+.photo-drop.has-photo { border-style: solid; height: auto; aspect-ratio: 16 / 10; max-width: 420px; }
 .photo-drop img { width: 100%; height: 100%; object-fit: cover; }
 .photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-2); font-size: 14px; }
 .photo-icon { font-size: 28px; }
@@ -352,6 +352,39 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
   position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%; border: 0;
   background: rgba(0, 0, 0, .6); color: #fff; font-size: 13px;
 }
+.photo-crop-btn {
+  position: absolute; right: 10px; bottom: 10px; height: 30px; padding: 0 12px; border-radius: 15px; border: 0;
+  background: rgba(0, 0, 0, .6); color: #fff; font-size: 12.5px; font-weight: 600;
+}
+.photo-crop-btn:hover, .photo-remove:hover { background: rgba(0, 0, 0, .78); }
+
+/* ---------- Foto zuschneiden ---------- */
+.modal-crop { max-width: 680px; }
+.crop-hint { font-size: 13px; margin: 0 0 10px; }
+.crop-frame {
+  position: relative; width: 100%; max-width: 520px; margin: 0 auto; overflow: hidden; border-radius: 12px; background: var(--surface-2);
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.crop-frame.grabbing { cursor: grabbing; }
+.crop-frame img, .crop-prev img {
+  position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; user-select: none;
+}
+.crop-frame::after {   /* Drittel-Raster als Orientierung */
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to right, transparent calc(33.33% - .5px), rgba(255,255,255,.45) calc(33.33% - .5px), rgba(255,255,255,.45) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.45) calc(66.66% - .5px), rgba(255,255,255,.45) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.45) calc(33.33% - .5px), rgba(255,255,255,.45) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.45) calc(66.66% - .5px), rgba(255,255,255,.45) calc(66.66% + .5px), transparent calc(66.66% + .5px));
+}
+.crop-zoom-row { display: flex; align-items: center; gap: 10px; margin: 12px auto 16px; max-width: 520px; color: var(--text-2); }
+.crop-zoom-row input { flex: 1; }
+.crop-previews { display: flex; gap: 16px; align-items: flex-start; }
+.crop-prev-wrap { display: flex; flex-direction: column; gap: 6px; }
+.crop-prev-wide { flex: 1; min-width: 0; }
+.crop-prev-label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.crop-prev { position: relative; overflow: hidden; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.crop-prev-card { width: 176px; height: 110px; border-radius: 10px; }
+.crop-prev-hero { width: 100%; height: 110px; border-radius: 10px; }
 
 .servings { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
 
@@ -362,6 +395,14 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
   background: var(--surface);
 }
 .ing-top { display: flex; gap: 6px; align-items: center; }
+.ing-handle {
+  flex-shrink: 0; width: 26px; height: 34px; border: 0; border-radius: 6px; background: none;
+  color: var(--text-3); font-size: 17px; line-height: 1; cursor: grab; touch-action: none;
+}
+.ing-handle:hover, .ing-handle:focus-visible { color: var(--accent); background: var(--surface-2); }
+.ing-row.dragging { box-shadow: var(--shadow-lg); border-color: var(--accent); position: relative; z-index: 2; }
+.ing-row.dragging .ing-handle { cursor: grabbing; }
+.ing-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: space-between; }
 .ing-amount { display: flex; align-items: center; gap: 8px; }
 .ing-amount .ing-range { flex: 1; min-width: 80px; }
 .ing-amount .ing-unit { width: 140px; flex-shrink: 0; }
@@ -812,6 +853,8 @@ html[lang="en"] .lang-hint { display: none; }
   .plan-body { grid-template-columns: 1fr; }
   .plan-btn-label { display: none; }
   .drafts-btn-label { display: none; }
+  .crop-previews { flex-direction: column; }
+  .crop-prev-card { width: 100%; height: auto; aspect-ratio: 16 / 10; }
   .cmp-col-label { width: 112px; }
   .cmp-table { font-size: 13px; }
   .draft-item { flex-wrap: wrap; }
