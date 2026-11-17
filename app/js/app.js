@@ -375,6 +375,7 @@ window.EasyKitchen = window.EasyKitchen || {};
       const scroller = list.closest('.modal-body');
       const startY = e.clientY;
       const startScroll = scroller ? scroller.scrollTop : 0;
+      const startRect = row.getBoundingClientRect();
       const others = () => [...list.querySelectorAll('.ing-row')].filter(r => r !== row);
       const line = document.createElement('div');
       line.className = 'ing-drop-line';
@@ -390,7 +391,11 @@ window.EasyKitchen = window.EasyKitchen || {};
         const scrolled = scroller ? scroller.scrollTop - startScroll : 0;
         row.style.transform = `translateY(${lastY - startY + scrolled}px) scale(1.02)`;
         const rows = others();
-        target = rows.find(r => { const b = r.getBoundingClientRect(); return lastY < b.top + b.height / 2; }) || null;
+        // Maßgeblich ist die vordere Kante der angehobenen Zeile: nach unten die Unterkante,
+        // nach oben die Oberkante – sobald sie die Mitte der Nachbarzeile passiert, wird getauscht
+        const dy = lastY - startY;
+        const edge = dy >= 0 ? startRect.bottom + dy : startRect.top + dy;
+        target = rows.find(r => { const b = r.getBoundingClientRect(); return edge < b.top + b.height / 2; }) || null;
         // Position unverändert → keine Linie
         const unchanged = target ? target === row.nextElementSibling : rows.every(r => r.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING);
         line.hidden = unchanged;

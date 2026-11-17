@@ -405,13 +405,13 @@ input[type="range"] { accent-color: var(--accent); width: 100%; cursor: pointer;
 .ing-row.lifted {
   position: relative; z-index: 3; border-color: var(--accent);
   box-shadow: 0 14px 34px rgba(40, 25, 70, .28), 0 2px 6px rgba(40, 25, 70, .12);
-  background: var(--surface); opacity: .97;
+  background: var(--surface); opacity: .88;
 }
 .ing-row.lifted .ing-handle { cursor: grabbing; color: var(--accent); }
 body.ing-dragging, body.ing-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .ing-drop-line {
   position: absolute; left: 4px; right: 4px; height: 3px; border-radius: 2px; background: var(--accent);
-  z-index: 2; pointer-events: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  z-index: 5; pointer-events: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .ing-drop-line::before, .ing-drop-line::after {
   content: ''; position: absolute; top: -3.5px; width: 10px; height: 10px; border-radius: 50%;
